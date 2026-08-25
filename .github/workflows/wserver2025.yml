@@ -1,4 +1,4 @@
-name: Ultimate Windows 11 noVNC & SSH Overkill
+name: Windows Server 2025 & SSH host
 
 on:
   workflow_dispatch:
