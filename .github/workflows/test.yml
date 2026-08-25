@@ -1,35 +1,44 @@
-name: Windows Cloud Playground
+name: Enterprise GitLab Overkill
 
 on:
   workflow_dispatch:
 
 jobs:
-  build:
-    runs-on: windows-latest
+  gitlab:
+    runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - name: Maximize Disk Space
+        uses: jlumbroso/free-disk-space-action@main
+        with:
+          tool-cache: true
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: false
+          swap-storage: false
 
-      - name: Display Hardware Info
+      - name: Start GitLab Container
         run: |
-          Write-Host "=== CPU Info ==="
-          Get-CimInstance Win32_Processor | Select-Object Name, NumberOfCores, MaxClockSpeed
-          Write-Host "=== RAM Info ==="
-          Get-CimInstance Win32_ComputerSystem | Select-Object TotalPhysicalMemory
+          docker run --detach \
+            --hostname gitlab.local \
+            --publish 80:80 \
+            --publish 443:443 \
+            --publish 22:22 \
+            --name gitlab \
+            --restart always \
+            gitlab/gitlab-ce:latest
 
       - name: Install Cloudflared
         run: |
-          Invoke-WebRequest -Uri "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe" -OutFile "cloudflared.exe"
-          echo "Cloudflared downloaded successfully."
+          curl -L --output cloudflared https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64
+          chmod +x cloudflared
+          sudo mv cloudflared /usr/local/bin/cloudflared
 
-      - name: Expose and Run Tunnel
-        shell: pwsh
+      - name: Expose GitLab via Cloudflare Tunnel
         run: |
-          # Здесь можно запустить твой туннель или веб-приложение/нодку с noVNC
-          # Например, поднимем туннель на какой-нибудь локальный порт (например, 8080)
-          Write-Host "Starting Cloudflare Quick Tunnel..."
-          Start-Process -FilePath ".\cloudflared.exe" -ArgumentList "tunnel --url http://localhost:8080" -NoNewWindow
+          echo "Starting Cloudflare Quick Tunnel..."
+          cloudflared tunnel --url http://localhost:80 &
           
-          # Держать раннер живым, чтобы ты успел потыкать (ставим тайм-аут или бесконечный цикл на твои 6 часов)
-          Write-Host "Runner is active. Waiting..."
-          Start-Sleep -Seconds 21600
+          echo "Waiting for GitLab to boot up (this takes a few minutes)..."
+          sleep 21600
