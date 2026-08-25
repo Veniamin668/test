@@ -1,0 +1,35 @@
+name: Windows Cloud Playground
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Display Hardware Info
+        run: |
+          echo "=== CPU Info ==="
+          wmic cpu get Name, NumberOfCores, MaxClockSpeed
+          echo "=== RAM Info ==="
+          systeminfo | Select-String "Total Physical Memory"
+
+      - name: Install Cloudflared
+        run: |
+          Invoke-WebRequest -Uri "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe" -OutFile "cloudflared.exe"
+          echo "Cloudflared downloaded successfully."
+
+      - name: Expose and Run Tunnel
+        shell: pwsh
+        run: |
+          # Здесь можно запустить твой туннель или веб-приложение/нодку с noVNC
+          # Например, поднимем туннель на какой-нибудь локальный порт (например, 8080)
+          Write-Host "Starting Cloudflare Quick Tunnel..."
+          Start-Process -FilePath ".\cloudflared.exe" -ArgumentList "tunnel --url http://localhost:8080" -NoNewWindow
+          
+          # Держать раннер живым, чтобы ты успел потыкать (ставим тайм-аут или бесконечный цикл на твои 6 часов)
+          Write-Host "Runner is active. Waiting..."
+          Start-Sleep -Seconds 21600
