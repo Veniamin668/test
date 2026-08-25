@@ -68,4 +68,5 @@ jobs:
           # Запускаем Cloudflare туннель с принудительным http2 на noVNC порт 8006
           cloudflared tunnel --protocol http2 --url http://localhost:8006 &
           
-          sleep infinity
+          # Железобетонный вечный затык, чтобы раннер не закрывался
+          tail -f /dev/null
