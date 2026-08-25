@@ -4,39 +4,37 @@ on:
   workflow_dispatch:
 
 jobs:
-    cockpit:
-      runs-on: ubuntu-latest
-      steps:
-        - name: Install Cockpit
-          run: |
-            sudo apt-get update
-            sudo apt-get install -y cockpit
-            # Жестко задаем пароль 'root' (или любой другой) для юзера runner
-            echo "runner:root" | sudo chpasswd
-            sudo usermod -aG sudo runner
-            # Создаем конфиг для отключения шифрования, чтобы туннель пропустил без ошибок
-            sudo mkdir -p /etc/cockpit
-            echo -e "[WebService]\nAllowUnencrypted = true" | sudo tee /etc/cockpit/cockpit.conf
-            sudo systemctl enable --now cockpit.socket
+  cockpit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install Cockpit
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cockpit
+          
+          # Задаем пароль 'root' для юзера runner и даем права sudo
+          echo "runner:root" | sudo chpasswd
+          sudo usermod -aG sudo runner
+          
+          # Жестко конфигурируем Cockpit на отказ от принудительного шифрования
+          sudo mkdir -p /etc/cockpit
+          echo -e "[WebService]\nAllowUnencrypted = true\n" | sudo tee /etc/cockpit/cockpit.conf
+          
+          # Перезапускаем сокет, чтобы настройки применились
+          sudo systemctl restart cockpit.socket
+          sudo systemctl restart cockpit
 
-        - name: Start Cockpit Service
-          run: |
-            sudo systemctl enable --now cockpit.socket
-            # Отключаем принудительный SSL для локального туннеля, чтобы Cloudflare не ругался на самоподписанные сертификаты
-            sudo mkdir -p /etc/cockpit
-            echo -e "[WebService]\nAllowUnencrypted = true" | sudo tee /etc/cockpit/cockpit.conf
-            sudo systemctl restart cockpit
+      - name: Install Cloudflared
+        run: |
+          curl -L --output cloudflared https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64
+          chmod +x cloudflared
+          sudo mv cloudflared /usr/local/bin/cloudflared
 
-        - name: Install Cloudflared
-          run: |
-            curl -L --output cloudflared https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64
-            chmod +x cloudflared
-            sudo mv cloudflared /usr/local/bin/cloudflared
-
-        - name: Expose Cockpit via Cloudflare Tunnel
-          run: |
-            echo "Starting Cloudflare Quick Tunnel for Cockpit..."
-            cloudflared tunnel --url http://localhost:9090 &
-            
-            echo "Cockpit terminal is live! Runner active for 6 hours."
-            sleep 21600
+      - name: Expose Cockpit via Cloudflare Tunnel
+        run: |
+          echo "Starting Cloudflare Quick Tunnel..."
+          # Принудительно заворачиваем трафик по незашифрованному протоколу
+          cloudflared tunnel --url http://127.0.0.1:9090 &
+          
+          echo "Cockpit terminal is live! Runner active for 6 hours."
+          sleep 21600
