@@ -54,7 +54,7 @@ jobs:
             --device=/dev/kvm \
             --device=/dev/net/tun \
             --cap-add NET_ADMIN \
-            -e "VERSION=win10" \
+            -e "VERSION=2025" \
             -e "RAM_SIZE=12G" \
             -p 8006:8006 \
             --stop-timeout 120 \
