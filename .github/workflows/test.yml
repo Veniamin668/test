@@ -12,10 +12,10 @@ jobs:
 
       - name: Display Hardware Info
         run: |
-          echo "=== CPU Info ==="
-          wmic cpu get Name, NumberOfCores, MaxClockSpeed
-          echo "=== RAM Info ==="
-          systeminfo | Select-String "Total Physical Memory"
+          Write-Host "=== CPU Info ==="
+          Get-CimInstance Win32_Processor | Select-Object Name, NumberOfCores, MaxClockSpeed
+          Write-Host "=== RAM Info ==="
+          Get-CimInstance Win32_ComputerSystem | Select-Object TotalPhysicalMemory
 
       - name: Install Cloudflared
         run: |
