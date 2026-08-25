@@ -20,8 +20,8 @@ jobs:
 
       - name: Start ttyd and Expose via Tunnel
         run: |
-          # Запускаем ttyd под рутом, сразу прокидывая bash без всяких окон авторизации
-          sudo ttyd -p 7681 bash &
+          # Запускаем ttyd с явным абсолютным путем к bash, минуя системный логин
+          sudo ttyd -p 7681 /bin/bash &
           
           echo "Starting Cloudflare Quick Tunnel..."
           cloudflared tunnel --url http://127.0.0.1:7681 &
