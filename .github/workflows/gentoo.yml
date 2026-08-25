@@ -20,6 +20,17 @@ jobs:
           remove-codeql: 'true'
           remove-docker-images: 'true'
 
+      - name: Redirect Docker Data Root to Free Space
+        run: |
+          sudo systemctl stop docker
+          sudo mkdir -p /home/runner/work/docker-data
+          sudo rsync -a /var/lib/docker/ /home/runner/work/docker-data/ || true
+          
+          # Переписываем конфиг докера на новую просторную директорию
+          echo '{"data-root": "/home/runner/work/docker-data"}' | sudo tee /etc/docker/daemon.json
+          sudo systemctl start docker
+          echo "=== DOCKER SUCCESSFULLY RELOCATED ==="
+
       - name: Enable KVM hardware acceleration
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
