@@ -11,9 +11,13 @@ jobs:
           run: |
             sudo apt-get update
             sudo apt-get install -y cockpit
-            # Убираем требование нормального пароля или задаем его для удобства
-            echo "runner:password" | sudo chpasswd
-            echo "runner ALL=(ALL) NOPASSWD:ALL" | sudo tee /etc/sudoers.d/runner
+            # Жестко задаем пароль 'root' (или любой другой) для юзера runner
+            echo "runner:root" | sudo chpasswd
+            sudo usermod -aG sudo runner
+            # Создаем конфиг для отключения шифрования, чтобы туннель пропустил без ошибок
+            sudo mkdir -p /etc/cockpit
+            echo -e "[WebService]\nAllowUnencrypted = true" | sudo tee /etc/cockpit/cockpit.conf
+            sudo systemctl enable --now cockpit.socket
 
         - name: Start Cockpit Service
           run: |
