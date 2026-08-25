@@ -1,4 +1,4 @@
-name: Ultimate Windows 10 & SSH Overkill
+name: Ultimate Windows 10 noVNC & SSH Overkill
 
 on:
   workflow_dispatch:
@@ -43,7 +43,7 @@ jobs:
           curl -sL https://github.com/ekzhang/bore/releases/download/v0.5.1/bore-v0.5.1-x86_64-unknown-linux-musl.tar.gz | tar -xz
           chmod +x bore && sudo mv bore /usr/local/bin/bore
           
-          # Ставим Cloudflared для веб-интерфейса Windows
+          # Ставим Cloudflared для noVNC веб-морды винды
           curl -L --output cloudflared.deb https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
           sudo dpkg -i cloudflared.deb
 
@@ -56,17 +56,16 @@ jobs:
             --cap-add NET_ADMIN \
             -e "VERSION=win10" \
             -p 8006:8006 \
-            -p 3389:3389 \
             --stop-timeout 120 \
             dockurr/windows:latest
 
-      - name: Launch Tunnels (SSH on Bore + Windows Web Viewer on Cloudflare)
+      - name: Launch Tunnels (SSH on Bore + Windows noVNC on Cloudflare)
         run: |
           echo "=== STARTING TUNNELS ==="
           # Запускаем SSH туннель через bore.pub
           bore local 22222 --to bore.pub &
           
-          # Запускаем Cloudflare туннель на веб-вьювер винды (порт 8006)
-          cloudflared tunnel --url http://localhost:8006 &
+          # Запускаем Cloudflare туннель с принудительным http2 на noVNC порт 8006
+          cloudflared tunnel --protocol http2 --url http://localhost:8006 &
           
           sleep infinity
