@@ -54,7 +54,7 @@ jobs:
             --device=/dev/kvm \
             --device=/dev/net/tun \
             --cap-add NET_ADMIN \
-            -e "VERSION=server2025" \
+            -e "VERSION=2025" \
             -e "RAM_SIZE=12G" \
             -p 8006:8006 \
             --stop-timeout 120 \
@@ -69,14 +69,14 @@ jobs:
           done
           echo "=== PORT 8006 IS UP AND RUNNING! ==="
 
-      - name: Launch Tunnels (Keep URL visible)
+      - name: Launch Tunnels (Insecure TLS Enabled)
         run: |
           echo "=== STARTING TUNNELS ==="
           # Запускаем SSH туннель
           bore local 22222 --to bore.pub &
           
-          # Запускаем Cloudflare туннель так, чтобы ссылка гарантированно осталась в логах
-          cloudflared tunnel  --url http://localhost:8006   &
+          # Запускаем Cloudflare туннель с разрешением небезопасного локального трафика (--no-tls-verify)
+          cloudflared tunnel --no-tls-verify --url http://localhost:8006 &
           
           # Железобетонный вечный затык
           tail -f /dev/null
