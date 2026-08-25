@@ -13,7 +13,7 @@ jobs:
             --hostname gitlab.local \
             --publish 80:80 \
             --publish 443:443 \
-            --publish 22:22 \
+            --publish 22:2222 \
             --name gitlab \
             --restart always \
             gitlab/gitlab-ce:latest
