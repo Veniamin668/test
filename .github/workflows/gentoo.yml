@@ -19,7 +19,6 @@ jobs:
           remove-haskell: 'true'
           remove-codeql: 'true'
           remove-docker-images: 'true'
-          remove-swift: 'true'
 
       - name: Enable KVM hardware acceleration
         run: |
