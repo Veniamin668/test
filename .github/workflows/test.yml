@@ -12,13 +12,17 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y openssh-server
           
-          # Задаем руту нормальный пароль
+          # Задаем руту пароль и сразу обновляем /etc/shadow
           echo "root:root" | sudo chpasswd
           
-          # Создаем системную папку для ключей sshd
+          # Насильственно правим конфиг SSH, разрешая вход руту по паролю
           sudo mkdir -p /var/run/sshd
-          
-          # Запускаем SSH-сервер вручную на порту 22222 в фоновом режиме, минуя systemd
+          sudo sed -i 's/#PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config
+          sudo sed -i 's/PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config
+          echo "PermitRootLogin yes" | sudo tee -a /etc/ssh/sshd_config
+          echo "PasswordAuthentication yes" | sudo tee -a /etc/ssh/sshd_config
+
+          # Запускаем SSH-сервер вручную на порту 22222 в фоновом режиме
           sudo /usr/sbin/sshd -p 22222 &
 
       - name: Install Bore
