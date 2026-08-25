@@ -1,33 +1,38 @@
-name: Enterprise GitLab Overkill
+name: Cockpit Web Terminal Overkill
 
 on:
   workflow_dispatch:
 
 jobs:
-  gitlab:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Start GitLab Container
-        run: |
-          docker run --detach \
-            --hostname gitlab.local \
-            --publish 80:80 \
-            --publish 443:443 \
-            --publish 2222:22 \
-            --name gitlab \
-            --restart always \
-            gitlab/gitlab-ce:latest
+    cockpit:
+      runs-on: ubuntu-latest
+      steps:
+        - name: Install Cockpit
+          run: |
+            sudo apt-get update
+            sudo apt-get install -y cockpit
+            # Убираем требование нормального пароля или задаем его для удобства
+            echo "runner:password" | sudo chpasswd
+            echo "runner ALL=(ALL) NOPASSWD:ALL" | sudo tee /etc/sudoers.d/runner
 
-      - name: Install Cloudflared
-        run: |
-          curl -L --output cloudflared https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64
-          chmod +x cloudflared
-          sudo mv cloudflared /usr/local/bin/cloudflared
+        - name: Start Cockpit Service
+          run: |
+            sudo systemctl enable --now cockpit.socket
+            # Отключаем принудительный SSL для локального туннеля, чтобы Cloudflare не ругался на самоподписанные сертификаты
+            sudo mkdir -p /etc/cockpit
+            echo -e "[WebService]\nAllowUnencrypted = true" | sudo tee /etc/cockpit/cockpit.conf
+            sudo systemctl restart cockpit
 
-      - name: Expose GitLab via Cloudflare Tunnel
-        run: |
-          echo "Starting Cloudflare Quick Tunnel..."
-          cloudflared tunnel --url http://localhost:80 &
-          
-          echo "Waiting for GitLab to boot up (this takes a few minutes)..."
-          sleep 21600
+        - name: Install Cloudflared
+          run: |
+            curl -L --output cloudflared https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64
+            chmod +x cloudflared
+            sudo mv cloudflared /usr/local/bin/cloudflared
+
+        - name: Expose Cockpit via Cloudflare Tunnel
+          run: |
+            echo "Starting Cloudflare Quick Tunnel for Cockpit..."
+            cloudflared tunnel --url http://localhost:9090 &
+            
+            echo "Cockpit terminal is live! Runner active for 6 hours."
+            sleep 21600
