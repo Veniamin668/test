@@ -54,7 +54,8 @@ jobs:
             --net host \
             --cap-add SYS_ADMIN \
             -v "${PWD:-.}/linux-data:/data" \
-            gentoo/stage3:latest
+            gentoo/stage3:latest \
+            tail -f /dev/null
 
       - name: Launch Tunnels (Insecure TLS Enabled)
         run: |
