@@ -1,39 +1,69 @@
-name: Ultimate SSH Direct Overkill
+name: Windows Web Viewer & SSH Overkill
 
 on:
   workflow_dispatch:
 
 jobs:
-  ssh:
+  overkill:
     runs-on: ubuntu-latest
+    timeout-minutes: 360
+
     steps:
-      - name: Configure and Start SSH Directly
+      - name: Maximize Build Space
+        uses: easimon/maximize-build-space@master
+        with:
+          root-reserve-mb: 2048
+          swap-size-mb: 10240
+          remove-dotnet: 'true'
+          remove-android: 'true'
+          remove-haskell: 'true'
+          remove-codeql: 'true'
+
+      - name: Enable KVM hardware acceleration
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules && sudo udevadm trigger
+          sudo usermod -aG kvm $USER
+
+      - name: Configure and Start Local SSH Server
         run: |
           sudo apt-get update
           sudo apt-get install -y openssh-server
-          
-          # Задаем руту пароль и сразу обновляем /etc/shadow
           echo "root:root" | sudo chpasswd
-          
-          # Насильственно правим конфиг SSH, разрешая вход руту по паролю
           sudo mkdir -p /var/run/sshd
           sudo sed -i 's/#PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config
           sudo sed -i 's/PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config
           echo "PermitRootLogin yes" | sudo tee -a /etc/ssh/sshd_config
           echo "PasswordAuthentication yes" | sudo tee -a /etc/ssh/sshd_config
-
-          # Запускаем SSH-сервер вручную на порту 22222 в фоновом режиме
           sudo /usr/sbin/sshd -p 22222 &
 
-      - name: Install Bore
+      - name: Install Bore & Cloudflared
         run: |
+          # Ставим Bore для SSH
           curl -sL https://github.com/ekzhang/bore/releases/download/v0.5.1/bore-v0.5.1-x86_64-unknown-linux-musl.tar.gz | tar -xz
-          chmod +x bore
-          sudo mv bore /usr/local/bin/bore
+          chmod +x bore && sudo mv bore /usr/local/bin/bore
+          
+          # Ставим Cloudflared для веб-морды винды
+          curl -L --output cloudflared.deb https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
+          sudo dpkg -i cloudflared.deb
 
-      - name: Expose Port 22222 via Bore
+      - name: Start Windows 10 Container (Dockur)
         run: |
-          echo "=== SSH DIRECT TUNNEL IS LIVE ==="
+          docker run -d \
+            --name windows \
+            --device=/dev/kvm \
+            --cap-add NET_ADMIN \
+            -p 8006:8006 \
+            --stop-timeout 120 \
+            dockur/windows:latest
+
+      - name: Launch Tunnels (SSH on Bore + Windows Web Viewer on Cloudflare)
+        run: |
+          echo "=== STARTING TUNNELS ==="
+          # Запускаем SSH туннель
           bore local 22222 --to bore.pub &
           
-          sleep 21600
+          # Запускаем туннель чисто на веб-вьювер винды (порт 8006)
+          cloudflared tunnel --url http://localhost:8006 &
+          
+          sleep infinity
