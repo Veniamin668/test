@@ -7,17 +7,6 @@ jobs:
   gitlab:
     runs-on: ubuntu-latest
     steps:
-      - name: Maximize Disk Space
-        uses: jlumbroso/free-disk-space-action@main
-        with:
-          tool-cache: true
-          android: true
-          dotnet: true
-          haskell: true
-          large-packages: true
-          docker-images: false
-          swap-storage: false
-
       - name: Start GitLab Container
         run: |
           docker run --detach \
