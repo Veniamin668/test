@@ -1,4 +1,4 @@
-name: Ultimate Windows 10 noVNC & SSH Overkill
+name: Ultimate Windows Server 2025 noVNC & SSH Overkill
 
 on:
   workflow_dispatch:
@@ -28,7 +28,7 @@ jobs:
       - name: Configure and Start Local SSH Server
         run: |
           sudo apt-get update
-          sudo apt-get install -y openssh-server
+          sudo apt-get install -y openssh-server netcat-openbsd
           echo "root:root" | sudo chpasswd
           sudo mkdir -p /var/run/sshd
           sudo sed -i 's/#PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config
@@ -43,31 +43,40 @@ jobs:
           curl -sL https://github.com/ekzhang/bore/releases/download/v0.5.1/bore-v0.5.1-x86_64-unknown-linux-musl.tar.gz | tar -xz
           chmod +x bore && sudo mv bore /usr/local/bin/bore
           
-          # Ставим Cloudflared для noVNC веб-морды винды
+          # Ставим Cloudflared для noVNC веб-морды
           curl -L --output cloudflared.deb https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
           sudo dpkg -i cloudflared.deb
 
-      - name: Start Windows 10 Container (Dockur)
+      - name: Start Windows Server 2025 Container (Dockur)
         run: |
           docker run -d \
             --name windows \
             --device=/dev/kvm \
             --device=/dev/net/tun \
             --cap-add NET_ADMIN \
-            -e "VERSION=2025" \
+            -e "VERSION=server2025" \
             -e "RAM_SIZE=12G" \
             -p 8006:8006 \
             --stop-timeout 120 \
             dockurr/windows:latest
 
-      - name: Launch Tunnels (SSH on Bore + Windows noVNC on Cloudflare)
+      - name: Wait for Windows noVNC Port to Open
+        run: |
+          echo "=== WAITING FOR PORT 8006 TO BE READY ==="
+          while ! nc -z localhost 8006; do
+            sleep 5
+            echo "Port 8006 is not open yet, waiting..."
+          done
+          echo "=== PORT 8006 IS UP AND RUNNING! ==="
+
+      - name: Launch Tunnels (Keep URL visible)
         run: |
           echo "=== STARTING TUNNELS ==="
-          # Запускаем SSH туннель через bore.pub
+          # Запускаем SSH туннель
           bore local 22222 --to bore.pub &
           
-          # Запускаем Cloudflare туннель с принудительным http2 на noVNC порт 8006
-          cloudflared tunnel --protocol http2 --url http://localhost:8006 &
+          # Запускаем Cloudflare туннель так, чтобы ссылка гарантированно осталась в логах
+          cloudflared tunnel --protocol http2 --url http://localhost:8006 2>&1  &
           
-          # Железобетонный вечный затык, чтобы раннер не закрывался
+          # Железобетонный вечный затык
           tail -f /dev/null
