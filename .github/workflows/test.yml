@@ -7,17 +7,10 @@ jobs:
   terminal:
     runs-on: ubuntu-latest
     steps:
-      - name: Set Passwords and Install ttyd
+      - name: Install ttyd
         run: |
           sudo apt-get update
           sudo apt-get install -y ttyd
-          
-          # Жестко задаем пароль 'root' для root и для runner
-          echo "root:root" | sudo chpasswd
-          echo "runner:root" | sudo chpasswd
-          
-          # Разрешаем руту логиниться везде
-          sudo sed -i 's/#PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config || true
 
       - name: Install Cloudflared
         run: |
@@ -27,7 +20,7 @@ jobs:
 
       - name: Start ttyd and Expose via Tunnel
         run: |
-          # Запускаем ttyd в фоне на 7681 порту под рутом с полноценным башем
+          # Запускаем ttyd под рутом, сразу прокидывая bash без всяких окон авторизации
           sudo ttyd -p 7681 bash &
           
           echo "Starting Cloudflare Quick Tunnel..."
