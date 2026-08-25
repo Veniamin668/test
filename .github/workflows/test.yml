@@ -1,0 +1,140 @@
+name: Windows Server 2025 & SSH host (Infinite Loop Edition)
+
+on:
+  workflow_dispatch: # Чтобы пинать вручную с мобилки/ПК
+  repository_dispatch:
+    types: [trigger-next-run] # Чтобы ловить автоматический пинок от прошлого ранера
+
+jobs:
+  overkill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+
+      - name: Maximize Build Space
+        uses: easimon/maximize-build-space@master
+        with:
+          root-reserve-mb: 2048
+          swap-size-mb: 10240
+          remove-dotnet: 'true'
+          remove-android: 'true'
+          remove-haskell: 'true'
+          remove-codeql: 'true'
+
+      # [ШАГ АВТОМАТИЗАЦИИ 1]: Скачиваем бэкап диска из прошлой сессии
+      - name: Download Previous Disk Image
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-disk-backup
+          path: ./windows
+        continue-on-error: true # Если это первый запуск и бэкапа ещё нет, идем дальше
+
+      # [ШАГ АВТОМАТИЗАЦИИ 2]: Распаковываем сжатый qcow2 обратно в рабочий диск
+      - name: Restore Compressed Disk Image
+        run: |
+          if [ -f ./windows/windows_compressed.qcow2 ]; then
+            sudo apt-get update && sudo apt-get install -y qemu-utils
+            qemu-img convert -O qcow2 ./windows/windows_compressed.qcow2 ./windows/windows.qcow2
+            rm ./windows/windows_compressed.qcow2
+            echo "=== БЭКАП НАЙДЕН И УСПЕШНО ВОССТАНОВЛЕН! ==="
+          else
+            echo "=== БЭКАП НЕ НАЙДЕН, БУДЕТ ЧИСТАЯ УСТАНОВКА ==="
+          fi
+
+      - name: Enable KVM hardware acceleration
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules && sudo udevadm trigger
+          sudo usermod -aG kvm $USER
+
+      - name: Configure and Start Local SSH Server
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y openssh-server netcat-openbsd qemu-utils
+          echo "root:root" | sudo chpasswd
+          sudo mkdir -p /var/run/sshd
+          sudo sed -i 's/#PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config
+          sudo sed -i 's/PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config
+          echo "PermitRootLogin yes" | sudo tee -a /etc/ssh/sshd_config
+          echo "PasswordAuthentication yes" | sudo tee -a /etc/ssh/sshd_config
+          sudo /usr/sbin/sshd -p 22222 &
+
+      - name: Install Bore & Cloudflared
+        run: |
+          curl -sL https://github.com/ekzhang/bore/releases/download/v0.5.1/bore-v0.5.1-x86_64-unknown-linux-musl.tar.gz | tar -xz
+          chmod +x bore && sudo mv bore /usr/local/bin/bore
+          curl -L --output cloudflared.deb https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
+          sudo dpkg -i cloudflared.deb
+
+      # [МОДИФИКАЦИЯ]: Добавили флаг MANUAL=Y, чтобы докер не качал ISO заново, если диск уже восстановлен
+      - name: Start Windows Container
+        run: |
+          docker run -d \
+            --name windows \
+            --device=/dev/kvm \
+            --device=/dev/net/tun \
+            --cap-add NET_ADMIN \
+            -e "VERSION=2025" \
+            -e "RAM_SIZE=12G" \
+            -e "MANUAL=Y" \
+            -p 8006:8006 \
+            -v "${PWD:-.}/windows:/storage" \
+            --stop-timeout 120 \
+            docker.io/dockurr/windows
+
+      - name: Wait for Windows noVNC Port to Open
+        run: |
+          echo "=== WAITING FOR PORT 8006 TO BE READY ==="
+          while ! nc -z localhost 8006; do
+            sleep 5
+            echo "Port 8006 is not open yet, waiting..."
+          done
+          echo "=== PORT 8006 IS UP AND RUNNING! ==="
+
+      - name: Launch Tunnels (Insecure TLS Enabled)
+        run: |
+          echo "=== STARTING TUNNELS ==="
+          bore local 22222 --to bore.pub &
+          cloudflared tunnel --no-tls-verify --url http://localhost:8006 &
+
+      # [ШАГ АВТОМАТИЗАЦИИ 3]: Спим 5 часов 35 минут, пока вы с пацанами сидите в RDP / качаете файлы
+      - name: Keep Alive Window (5 Hours 35 Minutes)
+        run: |
+          echo "=== СЕРВЕР АКТИВЕН И ДОСТУПЕН НА 5 ЧАСОВ 35 МИНУТ ==="
+          sleep 20100
+
+      # [ШАГ АВТОМАТИЗАЦИИ 4]: Пинаем GitHub API, чтобы запустить СЛЕДУЮЩИЙ параллельный ранер за 25 минут до конца текущего
+      - name: Trigger Next Run Before Deadline
+        run: |
+          echo "=== ТРИГГЕРИМ СЛЕДУЮЩИЙ БЕСШОВНЫЙ РАНЕР ==="
+          curl -X POST \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            https://github.com{{ github.repository }}/dispatches \
+            -d '{"event_type": "trigger-next-run", "client_payload": {"ref": "main"}}'
+
+      # [ШАГ АВТОМАТИЗАЦИИ 5]: Корректно тушим докер, чтобы Windows успела сбросить кэш реестра и файлов на диск
+      - name: Graceful Shutdown Windows Container
+        run: |
+          echo "=== ВЕЖЛИВО ОСТАНАВЛИВАЕМ WINDOWS ДЛЯ СОХРАНЕНИЯ ДАННЫХ ==="
+          docker stop --time 120 windows
+
+      # [ШАГ АВТОМАТИЗАЦИИ 6]: Сжимаем qcow2 через qemu-img встроенным zlib (схлопывает 30 ГБ в 4-5 ГБ за минуту)
+      - name: Compress Disk Image for Backup
+        run: |
+          echo "=== ЗАПУСКАЕМ СВЕРХБЫСТРОЕ СЖАТИЕ ДИСКА ==="
+          qemu-img convert -c -O qcow2 ./windows/data.qcow2 ./windows/windows_compressed.qcow2
+          # Удаляем тяжелый исходник, чтобы экшен заливал только легкий сжатый файл
+          rm -f ./windows/data.qcow2
+          rm -f ./windows/windows.qcow2
+
+      # [ШАГ АВТОМАТИЗАЦИИ 7]: Заливаем сжатый образ в облачные артефакты Гитхаба
+      - name: Upload Disk to GitHub Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-disk-backup
+          path: ./windows/windows_compressed.qcow2
+          retention-days: 1 # Храним ровно сутки, нам больше и не надо
