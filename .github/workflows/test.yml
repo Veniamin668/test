@@ -76,7 +76,7 @@ jobs:
           bore local 22222 --to bore.pub &
           
           # Запускаем Cloudflare туннель так, чтобы ссылка гарантированно осталась в логах
-          cloudflared tunnel --protocol http2 --url http://localhost:8006 2>&1  &
+          cloudflared tunnel  --url http://localhost:8006   &
           
           # Железобетонный вечный затык
           tail -f /dev/null
