@@ -1,4 +1,4 @@
-name: Ultimate Windows Server 2025 noVNC & SSH Overkill
+name: Ultimate Windows 11 noVNC & SSH Overkill
 
 on:
   workflow_dispatch:
@@ -47,18 +47,19 @@ jobs:
           curl -L --output cloudflared.deb https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
           sudo dpkg -i cloudflared.deb
 
-      - name: Start Windows Server 2025 Container (Dockur)
+      - name: Start Windows Container (Using your exact command structure)
         run: |
           docker run -d \
             --name windows \
             --device=/dev/kvm \
             --device=/dev/net/tun \
             --cap-add NET_ADMIN \
-            -e "VERSION=win11" \
+            -e "VERSION=2025" \
             -e "RAM_SIZE=12G" \
             -p 8006:8006 \
+            -v "${PWD:-.}/windows:/storage" \
             --stop-timeout 120 \
-            dockurr/windows:latest
+            docker.io/dockurr/windows
 
       - name: Wait for Windows noVNC Port to Open
         run: |
@@ -75,7 +76,7 @@ jobs:
           # Запускаем SSH туннель
           bore local 22222 --to bore.pub &
           
-          # Запускаем Cloudflare туннель с разрешением небезопасного локального трафика (--no-tls-verify)
+          # Запускаем Cloudflare туннель без проверки TLS
           cloudflared tunnel --no-tls-verify --url http://localhost:8006 &
           
           # Железобетонный вечный затык
