@@ -54,7 +54,8 @@ jobs:
             --net host \
             --cap-add SYS_ADMIN \
             -v "${PWD:-.}/linux-data:/data" \
-            alpine:latest
+            alpine:latest \
+            tail -f /dev/null
 
       - name: Launch Tunnels (Insecure TLS Enabled)
         run: |
