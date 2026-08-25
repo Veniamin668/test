@@ -1,4 +1,4 @@
-name: Ultimate SSH Overkill
+name: Ultimate SSH Direct Overkill
 
 on:
   workflow_dispatch:
@@ -7,32 +7,29 @@ jobs:
   ssh:
     runs-on: ubuntu-latest
     steps:
-      - name: Setup SSH and Passwords
+      - name: Configure and Start SSH Directly
         run: |
-          # Ставим сервер и настраиваем пароль
           sudo apt-get update
           sudo apt-get install -y openssh-server
           
+          # Задаем руту нормальный пароль
           echo "root:root" | sudo chpasswd
-          sudo sed -i 's/#PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config
-          sudo sed -i 's/PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config
-
-          # Переносим SSH-сервер на порт 2222, так как 22 занят хостом
-          sudo sed -i 's/#Port 22/Port 2222/' /etc/ssh/sshd_config || echo "Port 2222" | sudo tee -a /etc/ssh/sshd_config
           
-          # Перезапускаем ssh с новым портом
-          sudo systemctl restart ssh
+          # Создаем системную папку для ключей sshd
+          sudo mkdir -p /var/run/sshd
+          
+          # Запускаем SSH-сервер вручную на порту 22222 в фоновом режиме, минуя systemd
+          sudo /usr/sbin/sshd -p 22222 &
 
-      - name: Install Bore (Port Forwarder)
+      - name: Install Bore
         run: |
           curl -sL https://github.com/ekzhang/bore/releases/download/v0.5.1/bore-v0.5.1-x86_64-unknown-linux-musl.tar.gz | tar -xz
           chmod +x bore
           sudo mv bore /usr/local/bin/bore
 
-      - name: Expose SSH via Bore Tunnel
+      - name: Expose Port 22222 via Bore
         run: |
-          echo "=== SSH IS READY ON PORT 2222 ==="
-          # Прокидываем именно 2222 порт наружу через bore
-          bore local 2222 --to bore.pub &
+          echo "=== SSH DIRECT TUNNEL IS LIVE ==="
+          bore local 22222 --to bore.pub &
           
           sleep 21600
