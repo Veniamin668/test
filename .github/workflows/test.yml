@@ -107,16 +107,6 @@ jobs:
           echo "=== СЕРВЕР АКТИВЕН И ДОСТУПЕН НА 5 ЧАСОВ 35 МИНУТ ==="
           sleep 20100
 
-      # [ШАГ АВТОМАТИЗАЦИИ 4]: Пинаем GitHub API, чтобы запустить СЛЕДУЮЩИЙ параллельный ранер за 25 минут до конца текущего
-      - name: Trigger Next Run Before Deadline
-        run: |
-          echo "=== ТРИГГЕРИМ СЛЕДУЮЩИЙ БЕСШОВНЫЙ РАНЕР ==="
-          curl -X POST \
-            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            -H "Accept: application/vnd.github.v3+json" \
-            https://github.com{{ github.repository }}/dispatches \
-            -d '{"event_type": "trigger-next-run", "client_payload": {"ref": "main"}}'
-
       # [ШАГ АВТОМАТИЗАЦИИ 5]: Корректно тушим докер, чтобы Windows успела сбросить кэш реестра и файлов на диск
       - name: Graceful Shutdown Windows Container
         run: |
