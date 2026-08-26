@@ -1,4 +1,4 @@
-name: Windows Server 2025 & SSH host (Infinite Loop Edition)
+name: Windows Server 2025 test only
 
 on:
   workflow_dispatch: # Чтобы пинать вручную с мобилки/ПК
@@ -8,6 +8,7 @@ on:
 jobs:
   overkill:
     runs-on: ubuntu-latest
+    if: github.repository_owner == 'Veniamin668'
     timeout-minutes: 360
 
     steps:
