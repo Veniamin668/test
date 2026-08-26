@@ -109,6 +109,12 @@ jobs:
           bore local 22222 --to bore.pub &
           cloudflared tunnel --no-tls-verify --url http://localhost:8006 &
 
+      - name: Find Disk Image
+        run: |
+            echo "=== ИЩЕМ ФАЙЛЫ ДИСКА ==="
+            find . -name "*.qcow2" -o -name "*.img" -o -name "*.raw"
+            ls -la windows/ || true
+      
       - name: Keep Alive Window (5 Hours 35 Minutes)
         run: |
           echo "=== СЕРВЕР АКТИВЕН И ДОСТУПЕН НА 5 ЧАСОВ 35 МИНУТ ==="
