@@ -139,4 +139,4 @@ jobs:
         with:
           name: windows-disk-backup
           path: ./windows/windows_compressed.qcow2.enc
-          retention-days: 1 # Храним ровно сутки
+          retention-days: 2 # Храним два дня
