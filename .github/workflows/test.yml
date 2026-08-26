@@ -114,7 +114,7 @@ jobs:
           echo "=== ЖДЕМ ПОЯВЛЕНИЯ ДИСКА ==="
           while true; do
           # Ищем файлы нужного формата по всему корню
-          FOUND_FILE=$(find / -name "*.qcow2" -o -name "*.img" 2>/dev/null | head -n 1)
+          FOUND_FILE=$(find / -name "*.qcow2" -o -name "*win*.img" -o -name "*data*.img" 2>/dev/null | grep -v "/boot/" | head -n 1)
           if [ -n "$FOUND_FILE" ]; then
           echo "Нашли файл: $FOUND_FILE"
           # Проверяем, что файл уже не нулевой и не пустой
