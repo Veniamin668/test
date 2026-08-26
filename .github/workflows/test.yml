@@ -108,25 +108,6 @@ jobs:
           echo "=== STARTING TUNNELS ==="
           bore local 22222 --to bore.pub &
           cloudflared tunnel --no-tls-verify --url http://localhost:8006 &
-
-      - name: Wait and Find Disk Image
-        run: |
-          echo "=== ЖДЕМ ПОЯВЛЕНИЯ ДИСКА ==="
-          while true; do
-          # Ищем файлы нужного формата по всему корню
-          FOUND_FILE=$(find / -name "*.qcow2" -o -name "*win*.img" -o -name "*data*.img" 2>/dev/null | grep -v "/boot/" | head -n 1)
-          if [ -n "$FOUND_FILE" ]; then
-          echo "Нашли файл: $FOUND_FILE"
-          # Проверяем, что файл уже не нулевой и не пустой
-            if [ -s "$FOUND_FILE" ]; then
-          echo "Файл на месте и не пустой! Выходим из цикла."
-          echo "DISK_PATH=$FOUND_FILE" >> $GITHUB_ENV
-          break
-          fi
-          fi
-            echo "Пока тихо, ждем 10 секунд..."
-          sleep 10
-          done
       
       - name: Keep Alive Window (5 Hours 35 Minutes)
         run: |
