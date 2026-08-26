@@ -25,7 +25,7 @@ jobs:
           remove-haskell: 'true'
           remove-codeql: 'true'
 
-      # [ШАГ АВТОМАТИЗАЦИИ 1]: Скачиваем зашифрованный бэкап диска из прошлой сессии
+      # [ШАГ АВТОМАТИЗАЦИИ 1]: Скачиваем зашифрованный бэкап диска и загрузчика из прошлой сессии
       - name: Download Previous Disk Image
         uses: actions/download-artifact@v4
         with:
@@ -33,25 +33,27 @@ jobs:
           path: ./windows
         continue-on-error: true # Если это первый запуск и бэкапа ещё нет, идем дальше
 
-      # [ШАГ АВТОМАТИЗАЦИИ 2]: Расшифровываем и распаковываем qcow2 обратно в рабочий диск
+      # [ШАГ АВТОМАТИЗАЦИИ 2]: Расшифровываем и восстанавливаем data.img и boot.img
       - name: Decrypt and Restore Compressed Disk Image
         run: |
           sudo apt-get update && sudo apt-get install -y qemu-utils openssl
           
-          # Проверяем, есть ли скачанный зашифрованный файл
+          # Проверяем, есть ли скачанный зашифрованный файл диска
           if [ -f ./windows/windows_compressed.qcow2.enc ]; then
-            echo "=== ШИФРОВАННЫЙ БЭКАП НАЙДЕН, РАСШИФРОВЫВАЕМ... ==="
-            
-            # Расшифровываем файл с помощью ключа из GitHub Secrets
+            echo "=== ШИФРОВАННЫЙ БЭКАП ДИСКА НАЙДЕН, РАСШИФРОВЫВАЕМ... ==="
             openssl enc -d -aes-256-cbc -salt -in ./windows/windows_compressed.qcow2.enc -out ./windows/windows_compressed.qcow2 -k "${{ secrets.DISK_ENCRYPTION_KEY }}"
-            
-            # Конвертируем в рабочий qcow2
-            qemu-img convert -O qcow2 ./windows/windows_compressed.qcow2 ./windows/windows.qcow2
+            qemu-img convert -O qcow2 ./windows/windows_compressed.qcow2 ./windows/data.img
             rm -f ./windows/windows_compressed.qcow2.enc ./windows/windows_compressed.qcow2
-            
-            echo "=== БЭКАП УСПЕШНО РАСШИФРОВАН И ВОССТАНОВЛЕН! ==="
+            echo "=== ДИСК УСПЕШНО РАСШИФРОВАН И ВОССТАНОВЛЕН В DATA.IMG! ==="
           else
-            echo "=== БЭКАП НЕ НАЙДЕН, БУДЕТ ЧИСТАЯ УСТАНОВКА ==="
+            echo "=== БЭКАП ДИСКА НЕ НАЙДЕН, БУДЕТ ЧИСТАЯ УСТАНОВКА ==="
+          fi
+
+          # Если есть бэкап загрузчика, распаковываем его
+          if [ -f ./windows/boot_backup.tar.gz ]; then
+            echo "=== ВОССТАНАВЛИВАЕМ BOOT.IMG ==="
+            tar -xzf ./windows/boot_backup.tar.gz -C ./windows
+            rm -f ./windows/boot_backup.tar.gz
           fi
 
       - name: Enable KVM hardware acceleration
@@ -123,14 +125,27 @@ jobs:
         run: |
           echo "=== ЗАПУСКАЕМ СВЕРХБЫСТРОЕ СЖАТИЕ И ШИФРОВАНИЕ ДИСКА ==="
           
-          # Сжимаем qcow2
-          qemu-img convert -c -O qcow2 ./windows/data.qcow2 ./windows/windows_compressed.qcow2
+          # Определяем актуальный путь к диску (берем из переменной или дефолтный)
+          TARGET_DISK="${DISK_PATH:-./windows/data.img}"
           
-          # Шифруем полученный архив с помощью AES-256 и ключа из секретов
+          if [ -f "$TARGET_DISK" ]; then
+            qemu-img convert -c -O qcow2 "$TARGET_DISK" ./windows/windows_compressed.qcow2
+          else
+            echo "Диск не найден по пути $TARGET_DISK, пробуем стандартный ./windows/data.img"
+            qemu-img convert -c -O qcow2 ./windows/data.img ./windows/windows_compressed.qcow2
+          fi
+          
+          # Шифруем сжатый диск через AES-256
           openssl enc -aes-256-cbc -salt -in ./windows/windows_compressed.qcow2 -out ./windows/windows_compressed.qcow2.enc -k "${{ secrets.DISK_ENCRYPTION_KEY }}"
           
-          # Удаляем тяжелые несжатые и открытые файлы
-          rm -f ./windows/data.qcow2
+          # Упаковываем boot.img в архив, если он существует в папке windows
+          if [ -f ./windows/boot.img ]; then
+            echo "=== УПАКОВЫВАЕМ BOOT.IMG ==="
+            tar -czf ./windows/boot_backup.tar.gz -C ./windows boot.img
+          fi
+          
+          # Удаляем тяжелые открытые файлы перед загрузкой артефактов
+          rm -f ./windows/data.img
           rm -f ./windows/windows.qcow2
           rm -f ./windows/windows_compressed.qcow2
 
@@ -138,5 +153,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: windows-disk-backup
-          path: ./windows/windows_compressed.qcow2.enc
+          path: |
+            ./windows/windows_compressed.qcow2.enc
+            ./windows/boot_backup.tar.gz
           retention-days: 2 # Храним два дня
