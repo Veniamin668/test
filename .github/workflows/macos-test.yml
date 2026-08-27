@@ -1,0 +1,83 @@
+name: Cloud PC Edition (macOS testing)
+
+on:
+  workflow_dispatch:
+    inputs:
+      username:
+        description: 'username macOS'
+        required: true
+        default: 'ktoya'
+        type: string
+      password:
+        description: 'password user'
+        required: true
+        type: string
+      tailscale_authkey:
+        description: 'Tailscale Auth Key (tskey-auth-...)'
+        required: true
+        type: string
+
+jobs:
+  build-cloud-pc-mac-xrdp:
+    runs-on: macos-latest
+    timeout-minutes: 360 # Максимальное время сессии (6 часов)
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 1. Download and Install Tailscale
+        run: |
+          echo "Скачиваю Tailscale для macOS..."
+          curl -L "https://pkgs.tailscale.com/stable/Tailscale-latest-macos.pkg" -o "Tailscale-latest-macos.pkg"
+          
+          echo "Устанавливаю пакет..."
+          sudo installer -pkg "Tailscale-latest-macos.pkg" -target /
+
+      - name: 2. Start and Auth Tailscale
+        run: |
+          echo "Запускаю Tailscale daemon..."
+          sudo /Applications/Tailscale.app/Contents/MacOS/Tailscale up --authkey="${{ github.event.inputs.tailscale_authkey }}" --unattended
+          
+          # Получаем и выводим Tailscale IP в лог
+          tsIp=$(/Applications/Tailscale.app/Contents/MacOS/Tailscale ip -4)
+          echo "=== TAILSCALE IP: $tsIp ==="
+
+      - name: 3. Create User and Install XRDP via Homebrew
+        run: |
+          USERNAME="${{ github.event.inputs.username }}"
+          PASSWORD="${{ github.event.inputs.password }}"
+          
+          echo "Создаю пользователя: $USERNAME..."
+          USERID=$(dscl . -list /Users UniqueID | awk '{print $2}' | sort -n | tail -n 1)
+          NEXTID=$((USERID + 1))
+          
+          sudo dscl . -create /Users/$USERNAME
+          sudo dscl . -create /Users/$USERNAME UserShell /bin/zsh
+          sudo dscl . -create /Users/$USERNAME RealName "$USERNAME Cloud PC"
+          sudo dscl . -create /Users/$USERNAME UniqueID "$NEXTID"
+          sudo dscl . -create /Users/$USERNAME PrimaryGroupID 20
+          sudo dscl . -create /Users/$USERNAME NFSHomeDirectory /Users/$USERNAME
+          sudo mkdir -p /Users/$USERNAME
+          sudo chown -R $USERNAME:staff /Users/$USERNAME
+          
+          echo "Устанавливаю пароль..."
+          sudo dscl . -passwd /Users/$USERNAME "$PASSWORD"
+          
+          echo "Добавляю юзера в группу администраторов..."
+          sudo dscl . -append /Group/admin GroupMembership $USERNAME
+
+          echo "Устанавливаем XRDP и зависимости через Homebrew..."
+          brew install xrdp freerdp
+
+          echo "Конфигурируем и запускаем XRDP сервис..."
+          brew services start xrdp
+
+          echo "Всё готово! XRDP запущен поверх Tailscale."
+
+      - name: 4. Wait session (6 hours)
+        run: |
+          echo "macOS XRDP Cloud PC запущен и ждет тебя в сети! Не закрывай этот воркфлоу."
+          while true; do
+              sleep 60
+          done
