@@ -1,4 +1,4 @@
-name: Cloud PC Edition (macOS Remote test)
+name: Cloud PC Edition (macOS Remote)
 
 on:
   workflow_dispatch:
@@ -20,14 +20,18 @@ on:
 jobs:
   build-cloud-pc-mac:
     runs-on: macos-latest
-    timeout-minutes: 360 # Максимальное время сессии (6 часов)
+    timeout-minutes: 360
 
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: 1. Install Tailscale via Homebrew
+      - name: 1. Fix Homebrew Permissions & Install Tailscale
         run: |
+          echo "Фиксим права на папки Homebrew..."
+          sudo chown -R $USER /opt/homebrew
+          sudo chmod u+w /opt/homebrew /opt/homebrew/etc/bash_completion.d /opt/homebrew/lib/pkgconfig /opt/homebrew/share/aclocal /opt/homebrew/share/doc /opt/homebrew/share/info /opt/homebrew/share/locale /opt/homebrew/share/man /opt/homebrew/share/man/man1 /opt/homebrew/share/man/man3 /opt/homebrew/share/man/man5 /opt/homebrew/share/man/man7 /opt/homebrew/share/man/man8 /opt/homebrew/share/pwsh /opt/homebrew/share/pwsh/completions /opt/homebrew/share/zsh /opt/homebrew/share/zsh/site-functions /opt/homebrew/var/homebrew/locks /opt/homebrew/var/log
+          
           echo "Ставим Tailscale через brew..."
           brew install tailscale
 
@@ -39,11 +43,10 @@ jobs:
           echo "Авторизуемся в сети Tailscale..."
           sudo tailscale up --auth-key="${{ github.event.inputs.tailscale_authkey }}" --accept-risk=all
           
-          # Получаем и выводим Tailscale IP в лог
           tsIp=$(tailscale ip -4)
           echo "=== TAILSCALE IP: $tsIp ==="
 
-      - name: 3. Create User and Enable High-Performance Screen Sharing
+      - name: 3. Create User and Setup Environment
         run: |
           USERNAME="${{ github.event.inputs.username }}"
           PASSWORD="${{ github.event.inputs.password }}"
@@ -70,17 +73,17 @@ jobs:
           echo "Включаем SSH..."
           sudo systemsetup -setremotelogin on
 
-          echo "Включаем Screen Sharing и настраиваем под максимальную производительность..."
-          sudo /System/Library/CoreServices/RemoteManagement/ARDAgent.app/Contents/Resources/kickstart -activate -configure -access -on -users $USERNAME -privs -all -restart -agent -menu
-          
-          # Оптимизация частоты кадров VNC/Screen Sharing на уровне системы
-          sudo defaults write /Library/Preferences/com.apple.AppleVNCServer DirectDisplay -int 1
+          echo "Устанавливаем fastfetch..."
+          brew install fastfetch
 
-          echo "Всё готово! Пользователь создан, Tailscale поднято, удаленка активна."
+          echo "Включаем Screen Sharing..."
+          sudo /System/Library/CoreServices/RemoteManagement/ARDAgent.app/Contents/Resources/kickstart -activate -configure -access -on -users $USERNAME -privs -all -restart -agent -menu
+
+          echo "Всё готово!"
 
       - name: 4. Wait session (6 hours)
         run: |
-          echo "macOS Cloud PC запущен и ждет тебя в сети! Не закрывай этот воркфлоу."
+          echo "macOS Cloud PC запущен! Ждет тебя по SSH и в сети Tailscale."
           while true; do
               sleep 60
           done
