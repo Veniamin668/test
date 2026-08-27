@@ -3,14 +3,25 @@ name: Cloud PC Edition test edition
 on:
   workflow_dispatch:
     inputs:
-      username:
-        description: 'username windows'
+      use_custom_user:
+        description: 'Создавать кастомного юзера? (true/false)'
         required: true
+        default: 'false'
+        type: boolean
+      username:
+        description: 'Имя кастомного юзера (если включено выше)'
+        required: false
         default: 'ktoya'
         type: string
       password:
-        description: 'password user'
-        required: true
+        description: 'Пароль кастомного юзера'
+        required: false
+        default: ''
+        type: string
+      runneradmin_password:
+        description: 'Пароль для встроенного runneradmin (если пусто, не меняется)'
+        required: false
+        default: ''
         type: string
       tailscale_authkey:
         description: 'Tailscale Auth Key (tskey-auth-...)'
@@ -37,30 +48,41 @@ jobs:
           Write-Host "Устанавливаю Tailscale в тихом режиме..."
           Start-Process -FilePath "tailscale-setup.exe" -ArgumentList "/quiet", "/norestart" -Wait
 
-          Write-Host "Запускаю Tailscale, настраиваю выходную ноду и локальный доступ..."
+          Write-Host "Запускаю Tailscale и настраиваю выходную ноду..."
           & "C:\Program Files\Tailscale\tailscale.exe" up --authkey="${{ github.event.inputs.tailscale_authkey }}" --unattended --advertise-exit-node
 
           $tsIp = & "C:\Program Files\Tailscale\tailscale.exe" ip -4
           Write-Host "=== TAILSCALE IP: $tsIp ===" -ForegroundColor Green
         shell: pwsh
 
-      - name: 3. Create admin and Settings RDP
+      - name: 3. Setup Users, Passwords & RDP
         run: |
+          $useCustom = "${{ github.event.inputs.use_custom_user }}"
           $username = "${{ github.event.inputs.username }}"
           $password = "${{ github.event.inputs.password }}"
+          $runnerAdminPass = "${{ github.event.inputs.runneradmin_password }}"
 
-          Write-Host "Создаю пользователя: $username..."
-          $secPassword = ConvertTo-SecureString $password -AsPlainText -Force
-          New-LocalUser -Name $username -Password $secPassword -FullName "Cloud PC User" -Description "Custom Cloud PC Admin"
+          # Настройка встроенного runneradmin, если указан пароль
+          if (-not [string]::IsNullOrEmpty("$runnerAdminPass")) {
+              Write-Host "Меняю пароль для встроенного администратора runneradmin..."
+              net user runneradmin "$runnerAdminPass"
+          }
 
-          Write-Host "Добавляю юзера в группу Администраторов..."
-          Add-LocalGroupMember -Group "Administrators" -Member $username
+          # Создание кастомного пользователя, если включено тумблером
+          if ($useCustom -eq 'true' -and -not [string]::IsNullOrEmpty("$username") -and -not [string]::IsNullOrEmpty("$password")) {
+              Write-Host "Создаю кастомного пользователя: $username..."
+              $secPassword = ConvertTo-SecureString $password -AsPlainText -Force
+              New-LocalUser -Name $username -Password $secPassword -FullName "Cloud PC User" -Description "Custom Cloud PC Admin"
+              Add-LocalGroupMember -Group "Administrators" -Member $username
+          } else {
+              Write-Host "Кастомный пользователь не требуется, используем runneradmin."
+          }
 
           Write-Host "Включаем RDP в системе..."
           Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0
           Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
 
-          Write-Host "Всё готово! Пользователь создан, RDP открыт." -ForegroundColor Green
+          Write-Host "Всё готово! RDP открыт." -ForegroundColor Green
         shell: pwsh
 
       - name: 4. wait session (7 hours)
