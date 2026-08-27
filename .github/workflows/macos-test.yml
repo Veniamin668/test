@@ -65,7 +65,7 @@ jobs:
           sudo dscl . -passwd /Users/$USERNAME "$PASSWORD"
           
           echo "Добавляю юзера в группу администраторов..."
-          sudo dscl . -append /Group/admin GroupMembership $USERNAME
+          sudo dscl . -append /Groups/admin GroupMembership $USERNAME
 
           echo "Устанавливаем XRDP и зависимости через Homebrew..."
           brew install xrdp freerdp
