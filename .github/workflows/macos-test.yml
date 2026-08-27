@@ -37,7 +37,7 @@ jobs:
           sudo brew services start tailscale
           
           echo "Авторизуемся в сети Tailscale..."
-          sudo tailscale up --authkey="${{ github.event.inputs.tailscale_authkey }}" --unattended
+          sudo tailscale up --auth-key="${{ github.event.inputs.tailscale_authkey }}" --accept-risk=all
           
           # Получаем и выводим Tailscale IP в лог
           tsIp=$(tailscale ip -4)
