@@ -37,7 +37,7 @@ jobs:
           sudo brew services start tailscale
           
           echo "Авторизуемся в сети Tailscale (с включением exit-node и локального доступа)..."
-          sudo tailscale up --auth-key="${{ github.event.inputs.tailscale_authkey }}" --accept-risk=all --advertise-exit-node --exit-node-allow-lan-access=true
+          sudo tailscale up --auth-key="${{ github.event.inputs.tailscale_authkey }}" --accept-risk=all --advertise-exit-node
           
           tsIp=$(tailscale ip -4)
           echo "=== TAILSCALE IP: $tsIp ==="
