@@ -25,15 +25,14 @@ jobs:
           remove-haskell: 'true'
           remove-codeql: 'true'
 
-      # [ШАГ АВТОМАТИЗАЦИИ 1]: Скачиваем зашифрованный бэкап диска и загрузчика из прошлой сессии
       - name: Download Previous Disk Image
-        uses: actions/download-artifact@v4
+        uses: dawidd6/action-download-artifact@v3
         with:
           name: windows-disk-backup
+          workflow_conclusion: success
           path: ./windows
-        continue-on-error: true # Если это первый запуск и бэкапа ещё нет, идем дальше
+          if_no_artifact_found: ignore
 
-      # [ШАГ АВТОМАТИЗАЦИИ 2]: Расшифровываем и восстанавливаем data.img и boot.img
       - name: Decrypt and Restore Compressed Disk Image
         run: |
           sudo apt-get update && sudo apt-get install -y qemu-utils openssl
@@ -41,9 +40,9 @@ jobs:
           # Проверяем, есть ли скачанный зашифрованный файл диска
           if [ -f ./windows/windows_compressed.qcow2.enc ]; then
             echo "=== ШИФРОВАННЫЙ БЭКАП ДИСКА НАЙДЕН, РАСШИФРОВЫВАЕМ... ==="
-            openssl enc -d -aes-256-cbc -salt -in ./windows/windows_compressed.qcow2.enc -out ./windows/windows_compressed.qcow2 -k "${{ secrets.DISK_ENCRYPTION_KEY }}"
-            qemu-img convert -O qcow2 ./windows/windows_compressed.qcow2 ./windows/data.img
-            rm -f ./windows/windows_compressed.qcow2.enc ./windows/windows_compressed.qcow2
+            sudo openssl enc -d -aes-256-cbc -salt -in ./windows/windows_compressed.qcow2.enc -out ./windows/windows_compressed.qcow2 -k "${{ secrets.DISK_ENCRYPTION_KEY }}"
+            sudo qemu-img convert -O qcow2 ./windows/windows_compressed.qcow2 ./windows/data.img
+            sudo rm -f ./windows/windows_compressed.qcow2.enc ./windows/windows_compressed.qcow2
             echo "=== ДИСК УСПЕШНО РАСШИФРОВАН И ВОССТАНОВЛЕН В DATA.IMG! ==="
           else
             echo "=== БЭКАП ДИСКА НЕ НАЙДЕН, БУДЕТ ЧИСТАЯ УСТАНОВКА ==="
@@ -52,8 +51,8 @@ jobs:
           # Если есть бэкап загрузчика, распаковываем его
           if [ -f ./windows/boot_backup.tar.gz ]; then
             echo "=== ВОССТАНАВЛИВАЕМ BOOT.IMG ==="
-            tar -xzf ./windows/boot_backup.tar.gz -C ./windows
-            rm -f ./windows/boot_backup.tar.gz
+            sudo tar -xzf ./windows/boot_backup.tar.gz -C ./windows
+            sudo rm -f ./windows/boot_backup.tar.gz
           fi
 
       - name: Enable KVM hardware acceleration
@@ -110,7 +109,7 @@ jobs:
           echo "=== STARTING TUNNELS ==="
           bore local 22222 --to bore.pub &
           cloudflared tunnel --no-tls-verify --url http://localhost:8006 &
-      
+
       - name: Keep Alive Window (5 Hours 35 Minutes)
         run: |
           echo "=== СЕРВЕР АКТИВЕН И ДОСТУПЕН НА 5 ЧАСОВ 35 МИНУТ ==="
@@ -134,7 +133,7 @@ jobs:
             sudo qemu-img convert -c -O qcow2 ./windows/data.img ./windows/windows_compressed.qcow2
           fi
           
-          # Шифруем сжатый диск через AES-256 (тут тоже можно под судо, чтобы файл с правами рута создался)
+          # Шифруем сжатый диск через AES-256
           sudo openssl enc -aes-256-cbc -salt -in ./windows/windows_compressed.qcow2 -out ./windows/windows_compressed.qcow2.enc -k "${{ secrets.DISK_ENCRYPTION_KEY }}"
           
           # Упаковываем boot.img в архив, если он существует в папке windows
