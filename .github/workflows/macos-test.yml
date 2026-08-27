@@ -3,14 +3,25 @@ name: Cloud PC Edition (macOS SSH)
 on:
   workflow_dispatch:
     inputs:
-      username:
-        description: 'username macOS'
+      use_custom_user:
+        description: 'Создавать кастомного юзера? (true/false)'
         required: true
+        default: 'false'
+        type: boolean
+      username:
+        description: 'Имя кастомного юзера'
+        required: false
         default: 'ktoya'
         type: string
       password:
-        description: 'password user'
-        required: true
+        description: 'Пароль кастомного юзера'
+        required: false
+        default: ''
+        type: string
+      runner_password:
+        description: 'Пароль для дефолтного runner (если пусто, не меняется)'
+        required: false
+        default: ''
         type: string
       tailscale_authkey:
         description: 'Tailscale Auth Key (tskey-auth-...)'
@@ -36,40 +47,48 @@ jobs:
           echo "Запускаем Tailscaled сервис..."
           sudo brew services start tailscale
           
-          echo "Авторизуемся в сети Tailscale (с включением exit-node и локального доступа)..."
+          echo "Авторизуемся в сети Tailscale (exit-node)..."
           sudo tailscale up --auth-key="${{ github.event.inputs.tailscale_authkey }}" --accept-risk=all --advertise-exit-node
           
           tsIp=$(tailscale ip -4)
           echo "=== TAILSCALE IP: $tsIp ==="
 
-      - name: 3. Create User, Fix Homebrew & Setup Environment
+      - name: 3. Setup Users, SSH & Environment
         run: |
+          USE_CUSTOM="${{ github.event.inputs.use_custom_user }}"
           USERNAME="${{ github.event.inputs.username }}"
           PASSWORD="${{ github.event.inputs.password }}"
-          
-          echo "Создаю пользователя: $USERNAME..."
-          USERID=$(dscl . -list /Users UniqueID | awk '{print $2}' | sort -n | tail -n 1)
-          NEXTID=$((USERID + 1))
-          
-          sudo dscl . -create /Users/$USERNAME
-          sudo dscl . -create /Users/$USERNAME UserShell /bin/zsh
-          sudo dscl . -create /Users/$USERNAME RealName "$USERNAME Cloud PC"
-          sudo dscl . -create /Users/$USERNAME UniqueID "$NEXTID"
-          sudo dscl . -create /Users/$USERNAME PrimaryGroupID 20
-          sudo dscl . -create /Users/$USERNAME NFSHomeDirectory /Users/$USERNAME
-          sudo mkdir -p /Users/$USERNAME
-          sudo chown -R $USERNAME:staff /Users/$USERNAME
-          
-          echo "Устанавливаю пароль..."
-          sudo dscl . -passwd /Users/$USERNAME "$PASSWORD"
-          
-          echo "Добавляю юзера в группу администраторов..."
-          sudo dscl . -append /Groups/admin GroupMembership $USERNAME
+          RUNNER_PASS="${{ github.event.inputs.runner_password }}"
+
+          # Меняем пароль дефолтному юзеру runner, если передан пароль
+          if [ -n "$RUNNER_PASS" ]; then
+              echo "Устанавливаем новый пароль для дефолтного runner..."
+              echo "runner:$RUNNER_PASS" | sudo chpasswd
+          fi
+
+          # Создаем кастомного пользователя только если включен тумблер
+          if [ "$USE_CUSTOM" = "true" ] && [ -n "$USERNAME" ] && [ -n "$PASSWORD" ]; then
+              echo "Создаю кастомного пользователя: $USERNAME..."
+              USERID=$(dscl . -list /Users UniqueID | awk '{print $2}' | sort -n | tail -n 1)
+              NEXTID=$((USERID + 1))
+              
+              sudo dscl . -create /Users/$USERNAME
+              sudo dscl . -create /Users/$USERNAME UserShell /bin/zsh
+              sudo dscl . -create /Users/$USERNAME RealName "$USERNAME Cloud PC"
+              sudo dscl . -create /Users/$USERNAME UniqueID "$NEXTID"
+              sudo dscl . -create /Users/$USERNAME PrimaryGroupID 20
+              sudo dscl . -create /Users/$USERNAME NFSHomeDirectory /Users/$USERNAME
+              sudo mkdir -p /Users/$USERNAME
+              sudo chown -R $USERNAME:staff /Users/$USERNAME
+              sudo dscl . -passwd /Users/$USERNAME "$PASSWORD"
+              sudo dscl . -append /Groups/admin GroupMembership $USERNAME
+          else
+              echo "Кастомный юзер пропущен, используем стандартный runner."
+          fi
 
           echo "Фиксим права на папки Homebrew..."
-          sudo chown -R $USERNAME /opt/homebrew
-          sudo chown -R $USER /opt/homebrew
-          sudo chmod -R u+w /opt/homebrew
+          sudo chown -R $USER /opt/homebrew || true
+          sudo chmod -R u+w /opt/homebrew || true
 
           echo "Включаем SSH..."
           sudo systemsetup -setremotelogin on
