@@ -67,7 +67,7 @@ jobs:
           sudo dscl . -append /Groups/admin GroupMembership $USERNAME
 
           echo "Фиксим права на папки Homebrew..."
-          sudo chown -R $USER /opt/homebrew
+          sudo chown -R $USERNAME /opt/homebrew
           sudo chmod -R u+w /opt/homebrew
 
           echo "Включаем SSH..."
