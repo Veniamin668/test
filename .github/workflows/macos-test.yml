@@ -1,4 +1,4 @@
-name: Cloud PC Edition (macOS Remote)
+name: Cloud PC Edition (macOS Remote test)
 
 on:
   workflow_dispatch:
@@ -26,12 +26,8 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: 1. Fix Homebrew Permissions & Install Tailscale
+      - name: 1. Install Tailscale via Homebrew
         run: |
-          echo "Фиксим права на папки Homebrew..."
-          sudo chown -R $USER /opt/homebrew
-          sudo chmod u+w /opt/homebrew /opt/homebrew/etc/bash_completion.d /opt/homebrew/lib/pkgconfig /opt/homebrew/share/aclocal /opt/homebrew/share/doc /opt/homebrew/share/info /opt/homebrew/share/locale /opt/homebrew/share/man /opt/homebrew/share/man/man1 /opt/homebrew/share/man/man3 /opt/homebrew/share/man/man5 /opt/homebrew/share/man/man7 /opt/homebrew/share/man/man8 /opt/homebrew/share/pwsh /opt/homebrew/share/pwsh/completions /opt/homebrew/share/zsh /opt/homebrew/share/zsh/site-functions /opt/homebrew/var/homebrew/locks /opt/homebrew/var/log
-          
           echo "Ставим Tailscale через brew..."
           brew install tailscale
 
@@ -46,7 +42,7 @@ jobs:
           tsIp=$(tailscale ip -4)
           echo "=== TAILSCALE IP: $tsIp ==="
 
-      - name: 3. Create User and Setup Environment
+      - name: 3. Create User, Fix Homebrew & Setup Environment
         run: |
           USERNAME="${{ github.event.inputs.username }}"
           PASSWORD="${{ github.event.inputs.password }}"
@@ -69,6 +65,10 @@ jobs:
           
           echo "Добавляю юзера в группу администраторов..."
           sudo dscl . -append /Groups/admin GroupMembership $USERNAME
+
+          echo "Фиксим права на папки Homebrew..."
+          sudo chown -R $USER /opt/homebrew
+          sudo chmod -R u+w /opt/homebrew
 
           echo "Включаем SSH..."
           sudo systemsetup -setremotelogin on
