@@ -1,4 +1,4 @@
-name: Cloud PC Edition (macOS Remote)
+name: Cloud PC Edition (macOS Remote testing)
 
 on:
   workflow_dispatch:
