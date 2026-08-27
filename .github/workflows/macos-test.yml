@@ -1,4 +1,4 @@
-name: Cloud PC Edition (macOS testing)
+name: Cloud PC Edition (macOS XRDP)
 
 on:
   workflow_dispatch:
@@ -26,21 +26,21 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: 1. Download and Install Tailscale
+      - name: 1. Install Tailscale via Homebrew
         run: |
-          echo "Скачиваю Tailscale для macOS..."
-          curl -L "https://pkgs.tailscale.com/stable/Tailscale-latest-macos.pkg" -o "Tailscale-latest-macos.pkg"
-          
-          echo "Устанавливаю пакет..."
-          sudo installer -pkg "Tailscale-latest-macos.pkg" -target /
+          echo "Ставим Tailscale через brew..."
+          brew install tailscale
 
       - name: 2. Start and Auth Tailscale
         run: |
-          echo "Запускаю Tailscale daemon..."
-          sudo /Applications/Tailscale.app/Contents/MacOS/Tailscale up --authkey="${{ github.event.inputs.tailscale_authkey }}" --unattended
+          echo "Запускаем Tailscaled сервис..."
+          sudo brew services start tailscale
+          
+          echo "Авторизуемся в сети Tailscale..."
+          sudo tailscale up --authkey="${{ github.event.inputs.tailscale_authkey }}" --unattended
           
           # Получаем и выводим Tailscale IP в лог
-          tsIp=$(/Applications/Tailscale.app/Contents/MacOS/Tailscale ip -4)
+          tsIp=$(tailscale ip -4)
           echo "=== TAILSCALE IP: $tsIp ==="
 
       - name: 3. Create User and Install XRDP via Homebrew
