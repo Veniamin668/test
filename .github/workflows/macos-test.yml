@@ -1,4 +1,4 @@
-name: Cloud PC Edition (macOS Remote testing)
+name: Cloud PC Edition (macOS SSH)
 
 on:
   workflow_dispatch:
@@ -75,9 +75,6 @@ jobs:
 
           echo "Устанавливаем fastfetch..."
           brew install fastfetch
-
-          echo "Включаем Screen Sharing для пользователя $USERNAME..."
-          sudo /System/Library/CoreServices/RemoteManagement/ARDAgent.app/Contents/Resources/kickstart -activate -configure -access -on -users $USERNAME -privs -all -restart -agent -menu
 
           echo "Всё готово!"
 
