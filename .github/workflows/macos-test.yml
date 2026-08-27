@@ -68,6 +68,7 @@ jobs:
 
           echo "Фиксим права на папки Homebrew..."
           sudo chown -R $USERNAME /opt/homebrew
+          sudo chown -R $USER /opt/homebrew
           sudo chmod -R u+w /opt/homebrew
 
           echo "Включаем SSH..."
