@@ -1,4 +1,4 @@
-name: Cloud PC Edition (macOS Remote test)
+name: Cloud PC Edition (macOS Remote)
 
 on:
   workflow_dispatch:
@@ -76,14 +76,19 @@ jobs:
           echo "Устанавливаем fastfetch..."
           brew install fastfetch
 
-          echo "Включаем Screen Sharing..."
+          echo "Включаем Screen Sharing для пользователя $USERNAME..."
           sudo /System/Library/CoreServices/RemoteManagement/ARDAgent.app/Contents/Resources/kickstart -activate -configure -access -on -users $USERNAME -privs -all -restart -agent -menu
+          
+          echo "Даем права на удаленное управление через системные группы..."
+          sudo dseditgroup -o edit -a $USERNAME -t user com.apple.access_screensharing
+          sudo dseditgroup -o edit -a $USERNAME -t user com.apple.access_remote_management
 
           echo "Всё готово!"
 
       - name: 4. Wait session (6 hours)
+        continue-on-error: true
         run: |
           echo "macOS Cloud PC запущен! Ждет тебя по SSH и в сети Tailscale."
           while true; do
-              sleep 60
+              sleep 60 || true
           done
