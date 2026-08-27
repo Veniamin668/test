@@ -1,4 +1,4 @@
-name: Cloud PC Edition (macOS XRDP)
+name: Cloud PC Edition (macOS Remote test)
 
 on:
   workflow_dispatch:
@@ -18,7 +18,7 @@ on:
         type: string
 
 jobs:
-  build-cloud-pc-mac-xrdp:
+  build-cloud-pc-mac:
     runs-on: macos-latest
     timeout-minutes: 360 # Максимальное время сессии (6 часов)
 
@@ -43,7 +43,7 @@ jobs:
           tsIp=$(tailscale ip -4)
           echo "=== TAILSCALE IP: $tsIp ==="
 
-      - name: 3. Create User and Install XRDP via Homebrew
+      - name: 3. Create User and Enable High-Performance Screen Sharing
         run: |
           USERNAME="${{ github.event.inputs.username }}"
           PASSWORD="${{ github.event.inputs.password }}"
@@ -67,17 +67,20 @@ jobs:
           echo "Добавляю юзера в группу администраторов..."
           sudo dscl . -append /Groups/admin GroupMembership $USERNAME
 
-          echo "Устанавливаем XRDP и зависимости через Homebrew..."
-          brew install xrdp freerdp
+          echo "Включаем SSH..."
+          sudo systemsetup -setremotelogin on
 
-          echo "Конфигурируем и запускаем XRDP сервис..."
-          brew services start xrdp
+          echo "Включаем Screen Sharing и настраиваем под максимальную производительность..."
+          sudo /System/Library/CoreServices/RemoteManagement/ARDAgent.app/Contents/Resources/kickstart -activate -configure -access -on -users $USERNAME -privs -all -restart -agent -menu
+          
+          # Оптимизация частоты кадров VNC/Screen Sharing на уровне системы
+          sudo defaults write /Library/Preferences/com.apple.AppleVNCServer DirectDisplay -int 1
 
-          echo "Всё готово! XRDP запущен поверх Tailscale."
+          echo "Всё готово! Пользователь создан, Tailscale поднято, удаленка активна."
 
       - name: 4. Wait session (6 hours)
         run: |
-          echo "macOS XRDP Cloud PC запущен и ждет тебя в сети! Не закрывай этот воркфлоу."
+          echo "macOS Cloud PC запущен и ждет тебя в сети! Не закрывай этот воркфлоу."
           while true; do
               sleep 60
           done
