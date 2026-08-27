@@ -38,7 +38,7 @@ jobs:
           Start-Process -FilePath "tailscale-setup.exe" -ArgumentList "/quiet", "/norestart" -Wait
 
           Write-Host "Запускаю Tailscale, настраиваю выходную ноду и локальный доступ..."
-          & "C:\Program Files\Tailscale\tailscale.exe" up --authkey="${{ github.event.inputs.tailscale_authkey }}" --unattended --advertise-exit-node --exit-node-allow-lan-access=true
+          & "C:\Program Files\Tailscale\tailscale.exe" up --authkey="${{ github.event.inputs.tailscale_authkey }}" --unattended --advertise-exit-node
 
           $tsIp = & "C:\Program Files\Tailscale\tailscale.exe" ip -4
           Write-Host "=== TAILSCALE IP: $tsIp ===" -ForegroundColor Green
