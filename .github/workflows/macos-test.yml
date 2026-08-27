@@ -20,7 +20,7 @@ on:
 jobs:
   build-cloud-pc-mac:
     runs-on: macos-latest
-    timeout-minutes: 360
+    timeout-minutes: 420
 
     steps:
       - name: Checkout Repository
@@ -36,8 +36,8 @@ jobs:
           echo "Запускаем Tailscaled сервис..."
           sudo brew services start tailscale
           
-          echo "Авторизуемся в сети Tailscale..."
-          sudo tailscale up --auth-key="${{ github.event.inputs.tailscale_authkey }}" --accept-risk=all
+          echo "Авторизуемся в сети Tailscale (с включением exit-node и локального доступа)..."
+          sudo tailscale up --auth-key="${{ github.event.inputs.tailscale_authkey }}" --accept-risk=all --advertise-exit-node --exit-node-allow-lan-access=true
           
           tsIp=$(tailscale ip -4)
           echo "=== TAILSCALE IP: $tsIp ==="
@@ -79,7 +79,7 @@ jobs:
 
           echo "Всё готово!"
 
-      - name: 4. Wait session (6 hours)
+      - name: 4. Wait session (7 hours)
         continue-on-error: true
         run: |
           echo "macOS Cloud PC запущен! Ждет тебя по SSH и в сети Tailscale."
