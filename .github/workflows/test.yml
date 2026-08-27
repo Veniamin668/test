@@ -20,7 +20,7 @@ on:
 jobs:
   build-cloud-pc:
     runs-on: windows-latest
-    timeout-minutes: 360 # Максимальное время сессии (6 часов)
+    timeout-minutes: 420 # Максимальное время сессии (6 часов)
 
     steps:
       - name: Checkout Repository
