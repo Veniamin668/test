@@ -20,7 +20,7 @@ on:
 jobs:
   build-cloud-pc:
     runs-on: windows-latest
-    timeout-minutes: 420 # Максимальное время сессии (6 часов)
+    timeout-minutes: 420
 
     steps:
       - name: Checkout Repository
@@ -36,38 +36,36 @@ jobs:
         run: |
           Write-Host "Устанавливаю Tailscale в тихом режиме..."
           Start-Process -FilePath "tailscale-setup.exe" -ArgumentList "/quiet", "/norestart" -Wait
-          
-          Write-Host "Запускаю Tailscale и логинюсь по токену..."
-          & "C:\Program Files\Tailscale\tailscale.exe" up --authkey="${{ github.event.inputs.tailscale_authkey }}" --unattended
-          
-          # Получаем и выводим Tailscale IP прямо в лог
+
+          Write-Host "Запускаю Tailscale, настраиваю выходную ноду и локальный доступ..."
+          & "C:\Program Files\Tailscale\tailscale.exe" up --authkey="${{ github.event.inputs.tailscale_authkey }}" --unattended --advertise-exit-node --exit-node-allow-lan-access=true
+
           $tsIp = & "C:\Program Files\Tailscale\tailscale.exe" ip -4
-          Write-Host "=== TAILSCALE IP: $tsIp ==-" -ForegroundColor Green
+          Write-Host "=== TAILSCALE IP: $tsIp ===" -ForegroundColor Green
         shell: pwsh
 
       - name: 3. Create admin and Settings RDP
         run: |
           $username = "${{ github.event.inputs.username }}"
           $password = "${{ github.event.inputs.password }}"
-          
+
           Write-Host "Создаю пользователя: $username..."
           $secPassword = ConvertTo-SecureString $password -AsPlainText -Force
           New-LocalUser -Name $username -Password $secPassword -FullName "Cloud PC User" -Description "Custom Cloud PC Admin"
-          
+
           Write-Host "Добавляю юзера в группу Администраторов..."
           Add-LocalGroupMember -Group "Administrators" -Member $username
-          
+
           Write-Host "Включаем RDP в системе..."
           Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0
           Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
-          
+
           Write-Host "Всё готово! Пользователь создан, RDP открыт." -ForegroundColor Green
         shell: pwsh
 
-      - name: 4. wait session (6 hours)
+      - name: 4. wait session (7 hours)
         run: |
           Write-Host "Cloud PC запущен и ждет тебя в сети! Не закрывай этот воркфлоу."
-          # Бесконечный цикл с выводом статуса, чтобы воркфлоу не завершался досрочно
           while ($true) {
               Start-Sleep -Seconds 60
           }
