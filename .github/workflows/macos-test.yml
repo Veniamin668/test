@@ -78,10 +78,6 @@ jobs:
 
           echo "Включаем Screen Sharing для пользователя $USERNAME..."
           sudo /System/Library/CoreServices/RemoteManagement/ARDAgent.app/Contents/Resources/kickstart -activate -configure -access -on -users $USERNAME -privs -all -restart -agent -menu
-          
-          echo "Даем права на удаленное управление через системные группы..."
-          sudo dseditgroup -o edit -a $USERNAME -t user com.apple.access_screensharing
-          sudo dseditgroup -o edit -a $USERNAME -t user com.apple.access_remote_management
 
           echo "Всё готово!"
 
