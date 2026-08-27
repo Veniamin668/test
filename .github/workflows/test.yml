@@ -125,29 +125,28 @@ jobs:
         run: |
           echo "=== ЗАПУСКАЕМ СВЕРХБЫСТРОЕ СЖАТИЕ И ШИФРОВАНИЕ ДИСКА ==="
           
-          # Определяем актуальный путь к диску (берем из переменной или дефолтный)
           TARGET_DISK="${DISK_PATH:-./windows/data.img}"
           
           if [ -f "$TARGET_DISK" ]; then
-            qemu-img convert -c -O qcow2 "$TARGET_DISK" ./windows/windows_compressed.qcow2
+            sudo qemu-img convert -c -O qcow2 "$TARGET_DISK" ./windows/windows_compressed.qcow2
           else
             echo "Диск не найден по пути $TARGET_DISK, пробуем стандартный ./windows/data.img"
-            qemu-img convert -c -O qcow2 ./windows/data.img ./windows/windows_compressed.qcow2
+            sudo qemu-img convert -c -O qcow2 ./windows/data.img ./windows/windows_compressed.qcow2
           fi
           
-          # Шифруем сжатый диск через AES-256
-          openssl enc -aes-256-cbc -salt -in ./windows/windows_compressed.qcow2 -out ./windows/windows_compressed.qcow2.enc -k "${{ secrets.DISK_ENCRYPTION_KEY }}"
+          # Шифруем сжатый диск через AES-256 (тут тоже можно под судо, чтобы файл с правами рута создался)
+          sudo openssl enc -aes-256-cbc -salt -in ./windows/windows_compressed.qcow2 -out ./windows/windows_compressed.qcow2.enc -k "${{ secrets.DISK_ENCRYPTION_KEY }}"
           
           # Упаковываем boot.img в архив, если он существует в папке windows
           if [ -f ./windows/boot.img ]; then
             echo "=== УПАКОВЫВАЕМ BOOT.IMG ==="
-            tar -czf ./windows/boot_backup.tar.gz -C ./windows boot.img
+            sudo tar -czf ./windows/boot_backup.tar.gz -C ./windows boot.img
           fi
           
           # Удаляем тяжелые открытые файлы перед загрузкой артефактов
-          rm -f ./windows/data.img
-          rm -f ./windows/windows.qcow2
-          rm -f ./windows/windows_compressed.qcow2
+          sudo rm -f ./windows/data.img
+          sudo rm -f ./windows/windows.qcow2
+          sudo rm -f ./windows/windows_compressed.qcow2
 
       - name: Upload Encrypted Disk to GitHub Artifacts
         uses: actions/upload-artifact@v4
