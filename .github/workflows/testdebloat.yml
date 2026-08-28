@@ -28,12 +28,6 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Debloater windows
-        uses: Veniamin668/win-debloater-runner@main
-        with:
-          full_debloater: 'true'
-          normal_debloater: 'false'
-
       - name: 1. Download Tailscale
         run: |
           Write-Host "Скачиваю Tailscale..."
@@ -80,6 +74,12 @@ jobs:
           Write-Host "Всё готово! RDP открыт." -ForegroundColor Green
         shell: pwsh
 
+      - name: Debloater windows
+        uses: Veniamin668/win-debloater-runner@main
+        with:
+          full_debloater: 'true'
+          normal_debloater: 'false'
+          
       - name: 4. wait session (7 hours)
         run: |
           Write-Host "Cloud PC запущен и ждет тебя в сети! Не закрывай этот воркфлоу."
