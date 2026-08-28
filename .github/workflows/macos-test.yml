@@ -1,4 +1,4 @@
-name: Cloud PC Edition (macOS SSH test)
+name: Cloud PC Edition (macOS SSH)
 
 on:
   workflow_dispatch:
@@ -54,20 +54,22 @@ jobs:
           echo "=== TAILSCALE IP: $tsIp ==="
 
       - name: 3. Setup Users, SSH & Environment
+        env:
+          RUNNER_PASS: ${{ github.event.inputs.runner_password }}
+          CUSTOM_PASS: ${{ github.event.inputs.password }}
+          USE_CUSTOM: ${{ github.event.inputs.use_custom_user }}
+          USERNAME: ${{ github.event.inputs.username }}
         run: |
-          USE_CUSTOM="${{ github.event.inputs.use_custom_user }}"
-          USERNAME="${{ github.event.inputs.username }}"
-          PASSWORD="${{ github.event.inputs.password }}"
-          RUNNER_PASS="${{ github.event.inputs.runner_password }}"
-
-          # Безопасная смена пароля дефолтному runner через stdin (скрытно от логов)
+          # Безопасная смена пароля дефолтному runner через stdin без засвета в логах
           if [ -n "$RUNNER_PASS" ]; then
               echo "Устанавливаем новый пароль для дефолтного runner..."
-              echo -n "$RUNNER_PASS" | sudo dspasswd runner -
+              sudo dscl . -passwd /Users/runner "$RUNNER_PASS" 2>/dev/null || {
+                  echo -n "$RUNNER_PASS" | sudo dscl . -passwd /Users/runner
+              }
           fi
 
           # Создаем кастомного пользователя только если включен тумблер
-          if [ "$USE_CUSTOM" = "true" ] && [ -n "$USERNAME" ] && [ -n "$PASSWORD" ]; then
+          if [ "$USE_CUSTOM" = "true" ] && [ -n "$USERNAME" ] && [ -n "$CUSTOM_PASS" ]; then
               echo "Создаю кастомного пользователя: $USERNAME..."
               USERID=$(dscl . -list /Users UniqueID | awk '{print $2}' | sort -n | tail -n 1)
               NEXTID=$((USERID + 1))
@@ -80,7 +82,7 @@ jobs:
               sudo dscl . -create /Users/$USERNAME NFSHomeDirectory /Users/$USERNAME
               sudo mkdir -p /Users/$USERNAME
               sudo chown -R $USERNAME:staff /Users/$USERNAME
-              echo -n "$PASSWORD" | sudo dspasswd $USERNAME -
+              sudo dscl . -passwd /Users/$USERNAME "$CUSTOM_PASS"
               sudo dscl . -append /Groups/admin GroupMembership $USERNAME
           else
               echo "Кастомный юзер пропущен, используем стандартный runner."
