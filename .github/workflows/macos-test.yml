@@ -12,7 +12,7 @@ jobs:
       - name: Install QEMU, KVM and Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y  qemu-utils libguestfs-tools net-tools bridge-utils
+          sudo apt-get install -y  qemu-utils libguestfs-tools net-tools bridge-utils xvfb openbox xterm novnc websockify
 
       - name: Setup Tailscale VPN
         env:
