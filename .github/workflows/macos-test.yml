@@ -1,4 +1,4 @@
-name: Cloud PC Edition (macOS SSH)
+name: Cloud PC Edition (macOS SSH test)
 
 on:
   workflow_dispatch:
@@ -60,10 +60,10 @@ jobs:
           PASSWORD="${{ github.event.inputs.password }}"
           RUNNER_PASS="${{ github.event.inputs.runner_password }}"
 
-          # Принудительно меняем пароль дефолтному юзеру runner без запроса старого
+          # Безопасная смена пароля дефолтному runner через stdin (скрытно от логов)
           if [ -n "$RUNNER_PASS" ]; then
               echo "Устанавливаем новый пароль для дефолтного runner..."
-              sudo dscl . -create /Users/runner UserPassword "$RUNNER_PASS"
+              echo -n "$RUNNER_PASS" | sudo dspasswd runner -
           fi
 
           # Создаем кастомного пользователя только если включен тумблер
@@ -80,7 +80,7 @@ jobs:
               sudo dscl . -create /Users/$USERNAME NFSHomeDirectory /Users/$USERNAME
               sudo mkdir -p /Users/$USERNAME
               sudo chown -R $USERNAME:staff /Users/$USERNAME
-              sudo dscl . -create /Users/$USERNAME UserPassword "$PASSWORD"
+              echo -n "$PASSWORD" | sudo dspasswd $USERNAME -
               sudo dscl . -append /Groups/admin GroupMembership $USERNAME
           else
               echo "Кастомный юзер пропущен, используем стандартный runner."
