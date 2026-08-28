@@ -76,14 +76,20 @@ jobs:
           fi
 
           if ! id "$CUSTOM_USER" &>/dev/null; then
-              sudo sysadminctl -addUser "$CUSTOM_USER" -fullName "$CUSTOM_USER" -admin
-              echo "Пользователь $CUSTOM_USER создан."
+              sudo dscl . -create /Users/$CUSTOM_USER
+              sudo dscl . -create /Users/$CUSTOM_USER UserShell /bin/zsh
+              sudo dscl . -create /Users/$CUSTOM_USER RealName "$CUSTOM_USER"
+              sudo dscl . -create /Users/$CUSTOM_USER UniqueID 502
+              sudo dscl . -create /Users/$CUSTOM_USER PrimaryGroupID 20
+              sudo dscl . -create /Users/$CUSTOM_USER NFSHomeDirectory /Users/$CUSTOM_USER
+              sudo mkdir -p /Users/$CUSTOM_USER
+              sudo chown -R $CUSTOM_USER:staff /Users/$CUSTOM_USER
+              echo "Пользователь $CUSTOM_USER создан через dscl."
           else
               echo "Пользователь $CUSTOM_USER уже существует."
           fi
 
-          sudo dscl . -delete /Users/$CUSTOM_USER AuthenticationAuthority || true
-          sudo dscl . -passwd /Users/$CUSTOM_USER "$ACTIVE_PASS" || sudo dscl . -create /Users/$CUSTOM_USER Password "$ACTIVE_PASS"
+          sudo dscl . -passwd /Users/$CUSTOM_USER "$ACTIVE_PASS"
           sudo dseditgroup -o edit -a "$CUSTOM_USER" -t user admin || true
 
           echo "Проверяем статус SSH..."
