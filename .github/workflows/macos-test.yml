@@ -61,7 +61,7 @@ jobs:
       - name: 3. Setup Users, SSH & Environment
         env:
           USE_SECRETS: ${{ github.event.inputs.use_secrets }}
-          CUSTOM_USER: ${{ github.event.inputs.username }}
+          CUSTOM_USER: ${{ github.event.inputs.username }}`
           SECRET_PASS: ${{ secrets.CUSTOM_PASSWORD }}
           MANUAL_PASS: ${{ github.event.inputs.manual_password }}
         run: |
@@ -76,14 +76,13 @@ jobs:
           fi
 
           if ! id "$CUSTOM_USER" &>/dev/null; then
-              sudo sysadminctl -addUser "$CUSTOM_USER" -fullName "$CUSTOM_USER" -admin
-              echo "Пользователь $CUSTOM_USER успешно создан."
+              sudo sysadminctl -addUser "$CUSTOM_USER" -fullName "$CUSTOM_USER" -password "$ACTIVE_PASS" -admin
+              echo "Пользователь $CUSTOM_USER успешно создан с заданным паролем."
           else
               echo "Пользователь $CUSTOM_USER уже существует в системе."
+              sudo sysadminctl -passwd "$CUSTOM_USER" -password "$ACTIVE_PASS"
           fi
 
-          # Насильно задаем пароль через dscl и добавляем в группы доступа SSH
-          sudo dscl . -passwd /Users/$CUSTOM_USER "$ACTIVE_PASS"
           sudo dseditgroup -o edit -a "$CUSTOM_USER" -t group com.apple.access_ssh || true
           sudo dseditgroup -o edit -a "$CUSTOM_USER" -t user admin || true
 
