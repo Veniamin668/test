@@ -77,16 +77,16 @@ jobs:
               echo "Используем пароль из ручного инпута."
           fi
 
-          sudo dscl . -create /Users/$CUSTOM_USER
-          sudo dscl . -create /Users/$CUSTOM_USER UserShell /bin/zsh
-          sudo dscl . -create /Users/$CUSTOM_USER RealName "$CUSTOM_USER"
-          sudo dscl . -create /Users/$CUSTOM_USER UniqueID 501
-          sudo dscl . -create /Users/$CUSTOM_USER PrimaryGroupID 20
-          sudo dscl . -create /Users/$CUSTOM_USER NFSHomeDirectory /Users/$CUSTOM_USER
+          sudo dscl . -create /Users/$CUSTOM_USER || true
+          sudo dscl . -create /Users/$CUSTOM_USER UserShell /bin/zsh || true
+          sudo dscl . -create /Users/$CUSTOM_USER RealName "$CUSTOM_USER" || true
+          sudo dscl . -create /Users/$CUSTOM_USER UniqueID 501 || true
+          sudo dscl . -create /Users/$CUSTOM_USER PrimaryGroupID 20 || true
+          sudo dscl . -create /Users/$CUSTOM_USER NFSHomeDirectory /Users/$CUSTOM_USER || true
           sudo mkdir -p /Users/$CUSTOM_USER
           sudo chown -R $CUSTOM_USER:staff /Users/$CUSTOM_USER
           sudo echo "$CUSTOM_USER:$ACTIVE_PASS" | sudo chpasswd
-          sudo dseditgroup -o edit -a $CUSTOM_USER -t user admin
+          sudo dseditgroup -o edit -a $CUSTOM_USER -t user admin || true
 
           echo "Включаем SSH-сервер..."
           sudo launchctl load -w /System/Library/LaunchDaemons/ssh.plist
