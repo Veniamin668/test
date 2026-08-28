@@ -21,7 +21,7 @@ on:
       manual_password:
         description: 'Password для пользователя (если use_secrets: false)'
         required: false
-        default: 'password'
+        default: ''
         type: string
 
 jobs:
@@ -61,7 +61,7 @@ jobs:
       - name: 3. Setup Users, SSH & Environment
         env:
           USE_SECRETS: ${{ github.event.inputs.use_secrets }}
-          CUSTOM_USER: ${{ github.event.inputs.username }}`
+          CUSTOM_USER: ${{ github.event.inputs.username }}
           SECRET_PASS: ${{ secrets.CUSTOM_PASSWORD }}
           MANUAL_PASS: ${{ github.event.inputs.manual_password }}
         run: |
