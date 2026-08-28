@@ -11,7 +11,7 @@ on:
       use_secrets:
         description: 'Использовать секреты из GitHub Secrets (true/false)'
         required: true
-        default: 'true'
+        default: true
         type: boolean
       manual_tail_key:
         description: 'Tailscale Key (если use_secrets: false)'
