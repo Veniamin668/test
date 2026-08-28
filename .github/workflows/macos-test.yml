@@ -1,0 +1,81 @@
+name: Cloud PC Edition (macOS SSH test)
+
+on:
+  workflow_dispatch:
+    inputs:
+      username:
+        description: 'name custom user'
+        required: true
+        default: 'ktoya'
+        type: string
+      use_secrets:
+        description: 'Использовать секреты из GitHub Secrets (true/false)'
+        required: true
+        default: true
+        type: boolean
+      manual_tail_key:
+        description: 'Tailscale Key (если use_secrets: false)'
+        required: false
+        default: ''
+        type: string
+
+jobs:
+  build-cloud-pc-mac:
+    runs-on: macos-15-xlarge
+    timeout-minutes: 420
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 1. Install Tailscale via Homebrew
+        run: |
+          echo "Ставим Tailscale через brew..."
+          brew install tailscale
+
+      - name: 2. Start and Auth Tailscale
+        env:
+          USE_SECRETS: ${{ github.event.inputs.use_secrets }}
+          SECRET_KEY: ${{ secrets.TAIL_KEY }}
+          MANUAL_KEY: ${{ github.event.inputs.manual_tail_key }}
+        run: |
+          echo "Запускаем Tailscaled сервис..."
+          sudo brew services start tailscale
+
+          # Определяем, откуда брать ключ: из секретов или из инпута
+          if [ "$USE_SECRETS" = "true" ]; then
+              ACTIVE_TAIL_KEY="$SECRET_KEY"
+              echo "Используем Tailscale ключ из GitHub Secrets."
+          else
+              ACTIVE_TAIL_KEY="$MANUAL_KEY"
+              echo "Используем Tailscale ключ из ручного инпута."
+          fi
+
+          echo "Авторизуемся в сети Tailscale..."
+          sudo tailscale up --auth-key="$ACTIVE_TAIL_KEY" --accept-risk=all --advertise-exit-node
+
+      - name: 3. Setup Users, SSH & Environment
+        env:
+          CUSTOM_USER: ${{ github.event.inputs.username }}
+        run: |
+          echo "Настраиваем пользователя $CUSTOM_USER и окружение..."
+          sudo dscl . -create /Users/$CUSTOM_USER
+          sudo dscl . -create /Users/$CUSTOM_USER UserShell /bin/zsh
+          sudo dscl . -create /Users/$CUSTOM_USER RealName "$CUSTOM_USER"
+          sudo dscl . -create /Users/$CUSTOM_USER UniqueID 501
+          sudo dscl . -create /Users/$CUSTOM_USER PrimaryGroupID 20
+          sudo dscl . -create /Users/$CUSTOM_USER NFSHomeDirectory /Users/$CUSTOM_USER
+          sudo mkdir -p /Users/$CUSTOM_USER
+          sudo chown -R $CUSTOM_USER:staff /Users/$CUSTOM_USER
+          sudo echo "$CUSTOM_USER:password" | sudo chpasswd
+          sudo dseditgroup -o edit -a $CUSTOM_USER -t user admin
+
+          echo "Включаем SSH-сервер..."
+          sudo launchctl load -w /System/Library/LaunchDaemons/ssh.plist
+
+      - name: 4. Wait session (7 hours)
+        run: |
+          echo "Всё поднято, держим сессию..."
+          while true; do
+            sleep 60
+          done
