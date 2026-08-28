@@ -54,7 +54,7 @@ jobs:
           else
               ACTIVE_TAIL_KEY="$MANUAL_KEY"
               echo "Используем Tailscale ключ из ручного инпута."
-          }
+          fi
 
           echo "Авторизуемся в сети Tailscale..."
           sudo tailscale up --auth-key="$ACTIVE_TAIL_KEY" --accept-risk=all --advertise-exit-node
