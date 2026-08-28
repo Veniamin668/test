@@ -1,4 +1,4 @@
-name: Cloud PC Edition (macOS SSH test)
+name: Cloud macos suka
 
 on:
   workflow_dispatch:
@@ -75,7 +75,6 @@ jobs:
               echo "Используем пароль из ручного инпута."
           fi
 
-          # Создаем юзера через sysadminctl (она сама подберет свободный UID и создаст хомяк)
           if ! id "$CUSTOM_USER" &>/dev/null; then
               sudo sysadminctl -addUser "$CUSTOM_USER" -fullName "$CUSTOM_USER" -admin
               echo "Пользователь $CUSTOM_USER успешно создан."
@@ -83,13 +82,11 @@ jobs:
               echo "Пользователь $CUSTOM_USER уже существует в системе."
           fi
 
-          # Надежно ставим пароль от рута через dscl и переключаем шелл
           sudo dscl . -passwd /Users/$CUSTOM_USER "$ACTIVE_PASS"
-          sudo chsh -s /bin/zsh "$CUSTOM_USER"
           sudo dseditgroup -o edit -a "$CUSTOM_USER" -t user admin || true
 
-          echo "Включаем SSH-сервер..."
-          sudo launchctl load -w /System/Library/LaunchDaemons/ssh.plist
+          echo "Включаем SSH-сервер через bootstrap..."
+          sudo launchctl bootstrap system /System/Library/LaunchDaemons/com.openssh.sshd.plist || true
 
       - name: 4. Wait session (7 hours)
         run: |
