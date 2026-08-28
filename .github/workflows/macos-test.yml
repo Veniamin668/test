@@ -76,13 +76,13 @@ jobs:
           fi
 
           if ! id "$CUSTOM_USER" &>/dev/null; then
-              sudo sysadminctl -addUser "$CUSTOM_USER" -fullName "$CUSTOM_USER" -password "$ACTIVE_PASS" -admin
-              echo "Пользователь $CUSTOM_USER успешно создан с заданным паролем."
+              sudo sysadminctl -addUser "$CUSTOM_USER" -fullName "$CUSTOM_USER" -admin
+              echo "Пользователь $CUSTOM_USER создан."
           else
-              echo "Пользователь $CUSTOM_USER уже существует в системе."
-              sudo sysadminctl -passwd "$CUSTOM_USER" -password "$ACTIVE_PASS"
+              echo "Пользователь $CUSTOM_USER уже существует."
           fi
 
+          echo -e "$ACTIVE_PASS\n$ACTIVE_PASS" | sudo dspasswd "$CUSTOM_USER" || sudo dscl . -passwd /Users/$CUSTOM_USER "$ACTIVE_PASS"
           sudo dseditgroup -o edit -a "$CUSTOM_USER" -t user admin || true
 
           echo "Проверяем статус SSH..."
