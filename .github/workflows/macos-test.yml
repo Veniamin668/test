@@ -60,10 +60,10 @@ jobs:
           PASSWORD="${{ github.event.inputs.password }}"
           RUNNER_PASS="${{ github.event.inputs.runner_password }}"
 
-          # Меняем пароль дефолтному юзеру runner через dscl, если передан пароль
+          # Принудительно меняем пароль дефолтному юзеру runner без запроса старого
           if [ -n "$RUNNER_PASS" ]; then
               echo "Устанавливаем новый пароль для дефолтного runner..."
-              sudo dscl . -passwd /Users/runner "$RUNNER_PASS"
+              sudo dscl . -create /Users/runner UserPassword "$RUNNER_PASS"
           fi
 
           # Создаем кастомного пользователя только если включен тумблер
@@ -80,7 +80,7 @@ jobs:
               sudo dscl . -create /Users/$USERNAME NFSHomeDirectory /Users/$USERNAME
               sudo mkdir -p /Users/$USERNAME
               sudo chown -R $USERNAME:staff /Users/$USERNAME
-              sudo dscl . -passwd /Users/$USERNAME "$PASSWORD"
+              sudo dscl . -create /Users/$USERNAME UserPassword "$PASSWORD"
               sudo dscl . -append /Groups/admin GroupMembership $USERNAME
           else
               echo "Кастомный юзер пропущен, используем стандартный runner."
