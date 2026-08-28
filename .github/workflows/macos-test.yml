@@ -18,10 +18,15 @@ on:
         required: false
         default: ''
         type: string
+      manual_password:
+        description: 'Password для пользователя (если use_secrets: false)'
+        required: false
+        default: 'password'
+        type: string
 
 jobs:
   build-cloud-pc-mac:
-    runs-on: macos-14
+    runs-on: macos-15
     timeout-minutes: 420
 
     steps:
@@ -56,16 +61,32 @@ jobs:
 
       - name: 3. Setup Users, SSH & Environment
         env:
+          USE_SECRETS: ${{ github.event.inputs.use_secrets }}
           CUSTOM_USER: ${{ github.event.inputs.username }}
+          SECRET_PASS: ${{ secrets.VM_PASSWORD }}
+          MANUAL_PASS: ${{ github.event.inputs.manual_password }}
         run: |
-          echo "Настраиваем пользователя $CUSTOM_USER и окружение через sysadminctl..."
-          
-          if ! id "$CUSTOM_USER" &>/dev/null; then
-              sudo sysadminctl -addUser "$CUSTOM_USER" -fullName "$CUSTOM_USER" -password "password" -admin
-              sudo chsh -s /bin/zsh "$CUSTOM_USER"
+          echo "Настраиваем пользователя $CUSTOM_USER и окружение..."
+
+          # Определяем пароль в зависимости от переключателя секретов
+          if [ "$USE_SECRETS" = "true" ]; then
+              ACTIVE_PASS="$SECRET_PASS"
+              echo "Используем пароль из GitHub Secrets."
           else
-              echo "Пользователь $CUSTOM_USER уже существует."
+              ACTIVE_PASS="$MANUAL_PASS"
+              echo "Используем пароль из ручного инпута."
           fi
+
+          sudo dscl . -create /Users/$CUSTOM_USER
+          sudo dscl . -create /Users/$CUSTOM_USER UserShell /bin/zsh
+          sudo dscl . -create /Users/$CUSTOM_USER RealName "$CUSTOM_USER"
+          sudo dscl . -create /Users/$CUSTOM_USER UniqueID 501
+          sudo dscl . -create /Users/$CUSTOM_USER PrimaryGroupID 20
+          sudo dscl . -create /Users/$CUSTOM_USER NFSHomeDirectory /Users/$CUSTOM_USER
+          sudo mkdir -p /Users/$CUSTOM_USER
+          sudo chown -R $CUSTOM_USER:staff /Users/$CUSTOM_USER
+          sudo echo "$CUSTOM_USER:$ACTIVE_PASS" | sudo chpasswd
+          sudo dseditgroup -o edit -a $CUSTOM_USER -t user admin
 
           echo "Включаем SSH-сервер..."
           sudo launchctl load -w /System/Library/LaunchDaemons/ssh.plist
