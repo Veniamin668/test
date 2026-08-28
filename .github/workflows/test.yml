@@ -13,25 +13,16 @@ on:
         required: false
         default: 'ktoya'
         type: string
-      password:
-        description: 'Пароль кастомного юзера'
-        required: false
-        default: ''
-        type: string
-      runneradmin_password:
-        description: 'Пароль для встроенного runneradmin (если пусто, не меняется)'
-        required: false
-        default: ''
-        type: string
-      tailscale_authkey:
-        description: 'Tailscale Auth Key (tskey-auth-...)'
-        required: true
-        type: string
 
 jobs:
   build-cloud-pc:
     runs-on: windows-latest
     timeout-minutes: 420
+
+    env:
+      TAILSCALE_AUTHKEY: ${{ secrets.TAIL_KEY }}
+      ADMIN_PASS: ${{ secrets.ADMIN_PASS }}
+      CUSTOM_PASS: ${{ secrets.CUSTOM_PASSWORD }}
 
     steps:
       - name: Checkout Repository
@@ -49,7 +40,7 @@ jobs:
           Start-Process -FilePath "tailscale-setup.exe" -ArgumentList "/quiet", "/norestart" -Wait
 
           Write-Host "Запускаю Tailscale и настраиваю выходную ноду..."
-          & "C:\Program Files\Tailscale\tailscale.exe" up --authkey="${{ github.event.inputs.tailscale_authkey }}" --unattended --advertise-exit-node
+          & "C:\Program Files\Tailscale\tailscale.exe" up --authkey="$env:TAILSCALE_AUTHKEY" --unattended --advertise-exit-node
 
           $tsIp = & "C:\Program Files\Tailscale\tailscale.exe" ip -4
           Write-Host "=== TAILSCALE IP: $tsIp ===" -ForegroundColor Green
@@ -59,23 +50,21 @@ jobs:
         run: |
           $useCustom = "${{ github.event.inputs.use_custom_user }}"
           $username = "${{ github.event.inputs.username }}"
-          $password = "${{ github.event.inputs.password }}"
-          $runnerAdminPass = "${{ github.event.inputs.runneradmin_password }}"
-
-          # Настройка встроенного runneradmin, если указан пароль
-          if (-not [string]::IsNullOrEmpty("$runnerAdminPass")) {
+          
+          # Настройка встроенного администратора runneradmin через секрет ADMIN_PASS
+          if (-not [string]::IsNullOrEmpty("$env:ADMIN_PASS")) {
               Write-Host "Меняю пароль для встроенного администратора runneradmin..."
-              net user runneradmin "$runnerAdminPass"
+              net user runneradmin "$env:ADMIN_PASS"
           }
 
-          # Создание кастомного пользователя, если включено тумблером
-          if ($useCustom -eq 'true' -and -not [string]::IsNullOrEmpty("$username") -and -not [string]::IsNullOrEmpty("$password")) {
+          # Создание кастомного пользователя, если включено тумблером (с паролем из CUSTOM_PASS)
+          if ($useCustom -eq 'true' -and -not [string]::IsNullOrEmpty("$username") -and -not [string]::IsNullOrEmpty("$env:CUSTOM_PASS")) {
               Write-Host "Создаю кастомного пользователя: $username..."
-              $secPassword = ConvertTo-SecureString $password -AsPlainText -Force
+              $secPassword = ConvertTo-SecureString "$env:CUSTOM_PASS" -AsPlainText -Force
               New-LocalUser -Name $username -Password $secPassword -FullName "Cloud PC User" -Description "Custom Cloud PC Admin"
               Add-LocalGroupMember -Group "Administrators" -Member $username
           } else {
-              Write-Host "Кастомный пользователь не требуется, используем runneradmin."
+              Write-Host "Кастомный пользователь не требуется, работаем под runneradmin."
           }
 
           Write-Host "Включаем RDP в системе..."
