@@ -112,11 +112,6 @@ jobs:
 
           echo "Всё готово!"
 
-      - name: Run macOS VNC (Bypass Headless)
-        uses: sickcodes/macos-vnc-action@v1
-        with:
-          vnc-password: ${{ secrets.ADMIN_PASS }}
-
 
       - name: 4. Wait session (7 hours)
         continue-on-error: true
