@@ -1,0 +1,30 @@
+name: RDP Action Test
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test-rdp:
+    runs-on: windows-latest
+    timeout-minutes: 420
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Run Win RDP Enabler
+        uses: Veniamin668/win-rdp-enabler
+        with:
+          tailscale-authkey: ${{ secrets.TAIL_KEY }}
+          admin-password: ${{ secrets.ADMIN_PASS }}
+          use-custom-user: 'false'
+          username: ''
+          custom-password: ${{ secrets.CUSTOM_PASSWORD }}
+
+      - name: Keep session alive
+        shell: pwsh
+        run: |
+          Write-Host "Тестовая сессия запущена, RDP и Tailscale активны!"
+          while ($true) {
+              Start-Sleep -Seconds 60
+          }
