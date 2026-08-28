@@ -1,4 +1,4 @@
-name: Cloud macos suka
+name: Cloud PC Edition (macOS SSH test)
 
 on:
   workflow_dispatch:
@@ -82,11 +82,13 @@ jobs:
               echo "Пользователь $CUSTOM_USER уже существует в системе."
           fi
 
+          # Насильно задаем пароль через dscl и добавляем в группы доступа SSH
           sudo dscl . -passwd /Users/$CUSTOM_USER "$ACTIVE_PASS"
+          sudo dseditgroup -o edit -a "$CUSTOM_USER" -t group com.apple.access_ssh || true
           sudo dseditgroup -o edit -a "$CUSTOM_USER" -t user admin || true
 
-          echo "Включаем SSH-сервер через bootstrap..."
-          sudo launchctl bootstrap system /System/Library/LaunchDaemons/com.openssh.sshd.plist || true
+          echo "Проверяем статус SSH..."
+          sudo launchctl list | grep sshd || true
 
       - name: 4. Wait session (7 hours)
         run: |
