@@ -26,7 +26,7 @@ on:
 
 jobs:
   build-cloud-pc-mac:
-    runs-on: macos-15
+    runs-on: macos-14
     timeout-minutes: 420
 
     steps:
@@ -50,7 +50,7 @@ jobs:
           # Определяем, откуда брать ключ: из секретов или из инпута
           if [ "$USE_SECRETS" = "true" ]; then
               ACTIVE_TAIL_KEY="$SECRET_KEY"
-              echo "Используем Tailscale ключ из GitHub Secrets."
+              echo "Используем Tailscale ключ из GitHub Secrets (TAIL_KEY)."
           else
               ACTIVE_TAIL_KEY="$MANUAL_KEY"
               echo "Используем Tailscale ключ из ручного инпута."
@@ -63,7 +63,7 @@ jobs:
         env:
           USE_SECRETS: ${{ github.event.inputs.use_secrets }}
           CUSTOM_USER: ${{ github.event.inputs.username }}
-          SECRET_PASS: ${{ secrets.VM_PASSWORD }}
+          SECRET_PASS: ${{ secrets.CUSTOM_PASSWORD }}
           MANUAL_PASS: ${{ github.event.inputs.manual_password }}
         run: |
           echo "Настраиваем пользователя $CUSTOM_USER и окружение..."
@@ -71,7 +71,7 @@ jobs:
           # Определяем пароль в зависимости от переключателя секретов
           if [ "$USE_SECRETS" = "true" ]; then
               ACTIVE_PASS="$SECRET_PASS"
-              echo "Используем пароль из GitHub Secrets."
+              echo "Используем пароль из GitHub Secrets (CUSTOM_PASSWORD)."
           else
               ACTIVE_PASS="$MANUAL_PASS"
               echo "Используем пароль из ручного инпута."
