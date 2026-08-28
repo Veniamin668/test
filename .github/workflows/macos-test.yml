@@ -60,10 +60,10 @@ jobs:
           PASSWORD="${{ github.event.inputs.password }}"
           RUNNER_PASS="${{ github.event.inputs.runner_password }}"
 
-          # Меняем пароль дефолтному юзеру runner, если передан пароль
+          # Меняем пароль дефолтному юзеру runner через dscl, если передан пароль
           if [ -n "$RUNNER_PASS" ]; then
               echo "Устанавливаем новый пароль для дефолтного runner..."
-              echo "runner:$RUNNER_PASS" | sudo chpasswd
+              sudo dscl . -passwd /Users/runner "$RUNNER_PASS"
           fi
 
           # Создаем кастомного пользователя только если включен тумблер
