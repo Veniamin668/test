@@ -13,7 +13,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Run Win RDP Enabler
-        uses: Veniamin668/win-rdp-enabler
+        uses: Veniamin668/win-rdp-enabler@main
         with:
           tailscale-authkey: ${{ secrets.TAIL_KEY }}
           admin-password: ${{ secrets.ADMIN_PASS }}
