@@ -6,7 +6,7 @@ on:
       use_custom_user:
         description: 'Создавать кастомного юзера? (true/false)'
         required: true
-        default: 'false'
+        default: 'true'
         type: boolean
       username:
         description: 'Имя кастомного юзера'
@@ -16,12 +16,7 @@ on:
       password:
         description: 'Пароль кастомного юзера'
         required: false
-        default: ''
-        type: string
-      runner_password:
-        description: 'Пароль для дефолтного runner (если пусто, не меняется)'
-        required: false
-        default: ''
+        default: 'mysecurepassword'
         type: string
       tailscale_authkey:
         description: 'Tailscale Auth Key (tskey-auth-...)'
@@ -47,7 +42,7 @@ jobs:
           echo "Запускаем Tailscaled сервис..."
           sudo brew services start tailscale
           
-          echo "Авторизуемся в сети Tailscale (exit-node)..."
+          echo "Авторизуемся в сети Tailscale..."
           sudo tailscale up --auth-key="${{ github.event.inputs.tailscale_authkey }}" --accept-risk=all --advertise-exit-node
           
           tsIp=$(tailscale ip -4)
@@ -55,20 +50,17 @@ jobs:
 
       - name: 3. Setup Users, SSH & Environment
         env:
-          RUNNER_PASS: ${{ github.event.inputs.runner_password }}
           CUSTOM_PASS: ${{ github.event.inputs.password }}
           USE_CUSTOM: ${{ github.event.inputs.use_custom_user }}
           USERNAME: ${{ github.event.inputs.username }}
         run: |
-          # Безопасная смена пароля дефолтному runner через stdin без засвета в логах
-          if [ -n "$RUNNER_PASS" ]; then
-              echo "Устанавливаем новый пароль для дефолтного runner..."
-              sudo dscl . -passwd /Users/runner "$RUNNER_PASS" 2>/dev/null || {
-                  echo -n "$RUNNER_PASS" | sudo dscl . -passwd /Users/runner
-              }
-          fi
+          # Создаем временный скрытый исполняемый файл для изоляции логики
+          EXEC_SCRIPT=$(mktemp)
+          chmod 700 "$EXEC_SCRIPT"
 
-          # Создаем кастомного пользователя только если включен тумблер
+          cat << 'EOF' > "$EXEC_SCRIPT"
+          #!/bin/zsh
+          
           if [ "$USE_CUSTOM" = "true" ] && [ -n "$USERNAME" ] && [ -n "$CUSTOM_PASS" ]; then
               echo "Создаю кастомного пользователя: $USERNAME..."
               USERID=$(dscl . -list /Users UniqueID | awk '{print $2}' | sort -n | tail -n 1)
@@ -84,8 +76,9 @@ jobs:
               sudo chown -R $USERNAME:staff /Users/$USERNAME
               sudo dscl . -passwd /Users/$USERNAME "$CUSTOM_PASS"
               sudo dscl . -append /Groups/admin GroupMembership $USERNAME
+              echo "Кастомный юзер $USERNAME успешно создан и добавлен в админы!"
           else
-              echo "Кастомный юзер пропущен, используем стандартный runner."
+              echo "Внимание: кастомный юзер отключен."
           fi
 
           echo "Фиксим права на папки Homebrew..."
@@ -99,6 +92,11 @@ jobs:
           brew install fastfetch
 
           echo "Всё готово!"
+          EOF
+
+          # Запускаем скрытый скрипт с пробросом переменных и сразу затираем его
+          sudo -E "$EXEC_SCRIPT"
+          rm -f "$EXEC_SCRIPT"
 
       - name: 4. Wait session (7 hours)
         continue-on-error: true
