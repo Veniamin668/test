@@ -26,7 +26,7 @@ on:
 
 jobs:
   build-cloud-pc-mac:
-    runs-on: macos-14
+    runs-on: macos-latest
     timeout-minutes: 420
 
     steps:
@@ -89,7 +89,7 @@ jobs:
               echo "Пользователь $CUSTOM_USER уже существует."
           fi
 
-          sudo dscl . -passwd /Users/$CUSTOM_USER "$ACTIVE_PASS"
+          echo "$ACTIVE_PASS" | sudo dscl . -passwd /Users/$CUSTOM_USER
           sudo dseditgroup -o edit -a "$CUSTOM_USER" -t user admin || true
 
           echo "Проверяем статус SSH..."
