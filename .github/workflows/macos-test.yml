@@ -112,22 +112,11 @@ jobs:
 
           echo "Всё готово!"
 
-      - name: Setup Virtual Display & Native VNC
-        env:
-          VNC_PASSWORD: ${{ secrets.ADMIN_PASS }}
-        run: |
-          echo "=== Инициализация нативного дисплея macOS ==="
-          # Заставляем WindowServer инициализировать виртуальный фреймбуфер
-          sudo defaults write /Library/Preferences/com.apple.windowserver.plist DisplayResolutionEnabled -bool true
-          sudo defaults write /Library/Preferences/com.apple.windowserver.plist RemoteManagementVirtualDisplayMode -int 1
-          
-          echo "=== Включение родного сервера Screen Sharing ==="
-          # Активируем встроенный эппловский ARD Агент
-          sudo /System/Library/CoreServices/RemoteManagement/ARDAgent.app/Contents/Resources/kickstart -activate -configure -access -on -restart -agent -privs -all
-            echo "=== Конфигурация Legacy доступа и пароля из GitHub Secrets ==="
-            sudo /System/Library/CoreServices/RemoteManagement/ARDAgent.app/Contents/Resources/kickstart -configure -clientopts -setvnclegacy -vnclegacy yes -setvncpw -vncpw "$VNC_PASSWORD"
-            sudo /System/Library/CoreServices/RemoteManagement/ARDAgent.app/Contents/Resources/kickstart -restart -agent
-          echo "=== Все готово! VNC слушает порт 5900 ==="
+      - name: Run macOS VNC (Bypass Headless)
+        uses: sickcodes/macos-vnc-action@v1
+        with:
+          vnc-password: ${{ secrets.ADMIN_PASS }}
+
 
       - name: 4. Wait session (7 hours)
         continue-on-error: true
