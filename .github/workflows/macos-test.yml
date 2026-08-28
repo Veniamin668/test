@@ -1,122 +1,40 @@
-name: Cloud PC Edition (macOS SSH test)
-
-on:
-  workflow_dispatch:
-    inputs:
-      username:
-        description: 'name custom user'
-        required: true
-        default: 'ktoya'
-        type: string
-      use_secrets:
-        description: 'Использовать секреты из GitHub Secrets (true/false)'
-        required: true
-        default: true
-        type: boolean
-      manual_tail_key:
-        description: 'Tailscale Key (если use_secrets: false)'
-        required: false
-        default: ''
-        type: string
-      manual_password:
-        description: 'Password user (если use_secrets: false)'
-        required: false
-        default: ''
-        type: string
+name: macOS Cloud PC via QEMU
+on: workflow_dispatch
 
 jobs:
-  build-cloud-pc-mac:
-    runs-on: macos-latest
+  run-macos:
+    runs-on: ubuntu-latest
     timeout-minutes: 420
-
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+      - name: Checkout repo
+        uses: actions/checkout@v3
 
-      - name: 1. Install Tailscale via Homebrew
+      - name: Install QEMU, KVM and Dependencies
         run: |
-          echo "Ставим Tailscale через brew..."
-          brew install tailscale
+          sudo apt-get update
+          sudo apt-get install -y qemu-system-xargs qemu-utils libguestfs-tools net-tools bridge-utils
 
-      - name: 2. Start and Auth Tailscale
+      - name: Setup Tailscale VPN
         env:
-          USE_SECRETS: ${{ github.event.inputs.use_secrets }}
-          SECRET_KEY: ${{ secrets.TAIL_KEY }}
-          MANUAL_KEY: ${{ github.event.inputs.manual_tail_key }}
+          TAILSCALE_KEY: ${{ secrets.TAILSCALE_AUTHKEY }}
         run: |
-          echo "Запускаем Tailscaled сервис..."
-          sudo brew services start tailscale
-          
-          # Определяем, откуда брать ключ: из секретов или из инпута
-          if [ "$USE_SECRETS" = "true" ]; then
-              ACTIVE_TAIL_KEY="$SECRET_KEY"
-              echo "Используем Tailscale ключ из GitHub Secrets."
-          else
-              ACTIVE_TAIL_KEY="$MANUAL_KEY"
-              echo "Используем Tailscale ключ из ручного инпута."
-          fi
+          curl -fsSL https://tailscale.com/install.sh | sh
+          sudo tailscale up --authkey="$TAILSCALE_KEY" --accept-routes  --advertise-exit-node
 
-          echo "Авторизуемся в сети Tailscale..."
-          sudo tailscale up --auth-key="$ACTIVE_TAIL_KEY" --accept-risk=all --advertise-exit-node
-          
-          tsIp=$(tailscale ip -4)
-          echo "=== TAILSCALE IP: $tsIp ==="
-
-      - name: 3. Setup Users, SSH & Environment
-        env:
-          USE_SECRETS: ${{ github.event.inputs.use_secrets }}
-          SECRET_PASS: ${{ secrets.CUSTOM_PASSWORD }}
-          MANUAL_PASS: ${{ github.event.inputs.manual_password }}
-          USERNAME: ${{ github.event.inputs.username }}
+      - name: Download and Run Docker-OSX with GUI enabled
         run: |
-          echo "Создаю кастомного пользователя: $USERNAME..."
-          USERID=$(dscl . -list /Users UniqueID | awk '{print $2}' | sort -n | tail -n 1)
-          NEXTID=$((USERID + 1))
+          # Запускаем готовый контейнер Sickcodes, который сам создаст VNC/RDP внутри KVM      
+            docker run -it \
+          --device /dev/kvm \
+          -p 50922:10022 \
+          -v /tmp/.X11-unix:/tmp/.X11-unix \
+          -e "DISPLAY=${DISPLAY:-:0.0}" \
+          -e GENERATE_UNIQUE=true \
+          -e CPU='Haswell-noTSX' \
+          -e CPUID_FLAGS='kvm=on,vendor=GenuineIntel,+invtsc,vmware-cpuid-freq=on' \
+          -e MASTER_PLIST_URL='https://raw.githubusercontent.com/sickcodes/osx-serial-generator/master/config-custom-sonoma.plist' \
+          -e SHORTNAME=tahoe \
+          sickcodes/docker-osx:latest
           
-          sudo dscl . -create /Users/$USERNAME
-          sudo dscl . -create /Users/$USERNAME UserShell /bin/zsh
-          sudo dscl . -create /Users/$USERNAME RealName "$USERNAME Cloud PC"
-          sudo dscl . -create /Users/$USERNAME UniqueID "$NEXTID"
-          sudo dscl . -create /Users/$USERNAME PrimaryGroupID 20
-          sudo dscl . -create /Users/$USERNAME NFSHomeDirectory /Users/$USERNAME
-          sudo mkdir -p /Users/$USERNAME
-          sudo chown -R $USERNAME:staff /Users/$USERNAME
-          
-          # Выбираем пароль в зависимости от флага использования секретов
-          if [ "$USE_SECRETS" = "true" ]; then
-              ACTIVE_PASS="$SECRET_PASS"
-          else
-              ACTIVE_PASS="$MANUAL_PASS"
-          fi
-
-          # Задаем пароль через безопасный временный файл
-          PASS_FILE=$(mktemp)
-          chmod 600 "$PASS_FILE"
-          echo -n "$ACTIVE_PASS" > "$PASS_FILE"
-          sudo dscl . -passwd /Users/$USERNAME "$(cat "$PASS_FILE")"
-          rm -f "$PASS_FILE"
-
-          sudo dscl . -append /Groups/admin GroupMembership $USERNAME
-          
-          echo "Юзер $USERNAME успешно создан и добавлен в админы!"
-
-          echo "Фиксим права на папки Homebrew..."
-          sudo chown -R $USER /opt/homebrew || true
-          sudo chmod -R u+w /opt/homebrew || true
-
-          echo "Включаем SSH..."
-          sudo systemsetup -setremotelogin on
-
-          echo "Устанавливаем fastfetch..."
-          brew install fastfetch
-
-          echo "Всё готово!"
-
-
-      - name: 4. Wait session (7 hours)
-        continue-on-error: true
-        run: |
-          echo "macOS Cloud PC запущен! Ждет тебя по SSH и в сети Tailscale."
-          while true; do
-              sleep 60 || true
-          done
+          # Оставляем джобу активной на 7 часов
+          sleep 25200
