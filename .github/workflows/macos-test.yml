@@ -83,7 +83,6 @@ jobs:
               sudo sysadminctl -passwd "$CUSTOM_USER" -password "$ACTIVE_PASS"
           fi
 
-          sudo dseditgroup -o edit -a "$CUSTOM_USER" -t group com.apple.access_ssh || true
           sudo dseditgroup -o edit -a "$CUSTOM_USER" -t user admin || true
 
           echo "Проверяем статус SSH..."
