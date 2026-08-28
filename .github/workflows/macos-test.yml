@@ -1,21 +1,27 @@
-name: Cloud PC Edition (macOS SSH testing)
+name: Cloud PC Edition (macOS SSH)
 
 on:
   workflow_dispatch:
     inputs:
       username:
-        description: 'name custom users'
+        description: 'name custom user'
         required: true
         default: 'ktoya'
         type: string
-      temp_password:
-        description: 'Temp password'
+      use_secrets:
+        description: 'Использовать секреты из GitHub Secrets (true/false)'
         required: true
-        default: '123123'
+        default: 'true'
+        type: boolean
+      manual_tail_key:
+        description: 'Tailscale Key (если use_secrets: false)'
+        required: false
+        default: ''
         type: string
-      tailscale_authkey:
-        description: 'Tailscale Auth Key (tskey-auth-...)'
-        required: true
+      manual_password:
+        description: 'Password user (если use_secrets: false)'
+        required: false
+        default: ''
         type: string
 
 jobs:
@@ -33,22 +39,37 @@ jobs:
           brew install tailscale
 
       - name: 2. Start and Auth Tailscale
+        env:
+          USE_SECRETS: ${{ github.event.inputs.use_secrets }}
+          SECRET_KEY: ${{ secrets.TAIL_KEY }}
+          MANUAL_KEY: ${{ github.event.inputs.manual_tail_key }}
         run: |
           echo "Запускаем Tailscaled сервис..."
           sudo brew services start tailscale
           
+          # Определяем, откуда брать ключ: из секретов или из инпута
+          if [ "$USE_SECRETS" = "true" ]; then
+              ACTIVE_TAIL_KEY="$SECRET_KEY"
+              echo "Используем Tailscale ключ из GitHub Secrets."
+          else
+              ACTIVE_TAIL_KEY="$MANUAL_KEY"
+              echo "Используем Tailscale ключ из ручного инпута."
+          }
+
           echo "Авторизуемся в сети Tailscale..."
-          sudo tailscale up --auth-key="${{ github.event.inputs.tailscale_authkey }}" --accept-risk=all --advertise-exit-node
+          sudo tailscale up --auth-key="$ACTIVE_TAIL_KEY" --accept-risk=all --advertise-exit-node
           
           tsIp=$(tailscale ip -4)
           echo "=== TAILSCALE IP: $tsIp ==="
 
       - name: 3. Setup Users, SSH & Environment
         env:
-          TEMP_PASS: ${{ github.event.inputs.temp_password }}
+          USE_SECRETS: ${{ github.event.inputs.use_secrets }}
+          SECRET_PASS: ${{ secrets.CUSTOM_PASSWORD }}
+          MANUAL_PASS: ${{ github.event.inputs.manual_password }}
           USERNAME: ${{ github.event.inputs.username }}
         run: |
-          echo "Создаю кастомного пользователя: $USERNAME с временным паролем..."
+          echo "Создаю кастомного пользователя: $USERNAME..."
           USERID=$(dscl . -list /Users UniqueID | awk '{print $2}' | sort -n | tail -n 1)
           NEXTID=$((USERID + 1))
           
@@ -61,16 +82,23 @@ jobs:
           sudo mkdir -p /Users/$USERNAME
           sudo chown -R $USERNAME:staff /Users/$USERNAME
           
-          # Задаем временный пароль из инпута через безопасный файл во избежание утечки в логи аргументов
+          # Выбираем пароль в зависимости от флага использования секретов
+          if [ "$USE_SECRETS" = "true" ]; then
+              ACTIVE_PASS="$SECRET_PASS"
+          else
+              ACTIVE_PASS="$MANUAL_PASS"
+          fi
+
+          # Задаем пароль через безопасный временный файл
           PASS_FILE=$(mktemp)
           chmod 600 "$PASS_FILE"
-          echo -n "$TEMP_PASS" > "$PASS_FILE"
+          echo -n "$ACTIVE_PASS" > "$PASS_FILE"
           sudo dscl . -passwd /Users/$USERNAME "$(cat "$PASS_FILE")"
           rm -f "$PASS_FILE"
 
           sudo dscl . -append /Groups/admin GroupMembership $USERNAME
           
-          echo "Юзер $USERNAME успешно создан!"
+          echo "Юзер $USERNAME успешно создан и добавлен в админы!"
 
           echo "Фиксим права на папки Homebrew..."
           sudo chown -R $USER /opt/homebrew || true
