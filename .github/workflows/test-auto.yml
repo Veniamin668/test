@@ -2,20 +2,9 @@ name: Cloud PC test auto
 
 on:
   workflow_dispatch:
-    inputs:
-      use_custom_user:
-        description: 'Создавать кастомного юзера? (true/false)'
-        required: true
-        default: 'false'
-        type: boolean
-      username:
-        description: 'Имя кастомного юзера (если включено выше)'
-        required: false
-        default: 'ktoya'
-        type: string
-
+  
 jobs:
-  build-cloud-pc:
+  test-cloud-pc-auto:
     runs-on: windows-latest
     timeout-minutes: 420
 
