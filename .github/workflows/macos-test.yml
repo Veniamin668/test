@@ -1,4 +1,4 @@
-name: Cloud PC Edition (macOS SSH)
+name: Cloud PC Edition (macOS SSH test)
 
 on:
   workflow_dispatch:
