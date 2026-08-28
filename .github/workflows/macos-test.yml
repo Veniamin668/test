@@ -82,7 +82,8 @@ jobs:
               echo "Пользователь $CUSTOM_USER уже существует."
           fi
 
-          echo -e "$ACTIVE_PASS\n$ACTIVE_PASS" | sudo dspasswd "$CUSTOM_USER" || sudo dscl . -passwd /Users/$CUSTOM_USER "$ACTIVE_PASS"
+          sudo dscl . -delete /Users/$CUSTOM_USER AuthenticationAuthority || true
+          sudo dscl . -passwd /Users/$CUSTOM_USER "$ACTIVE_PASS" || sudo dscl . -create /Users/$CUSTOM_USER Password "$ACTIVE_PASS"
           sudo dseditgroup -o edit -a "$CUSTOM_USER" -t user admin || true
 
           echo "Проверяем статус SSH..."
