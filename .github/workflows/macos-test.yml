@@ -1,22 +1,17 @@
-name: Cloud PC Edition (macOS SSH)
+name: Cloud PC Edition (macOS SSH testing)
 
 on:
   workflow_dispatch:
     inputs:
-      use_custom_user:
-        description: 'Создавать кастомного юзера? (true/false)'
-        required: true
-        default: 'true'
-        type: boolean
       username:
-        description: 'Имя кастомного юзера'
-        required: false
+        description: 'name custom users'
+        required: true
         default: 'ktoya'
         type: string
-      password:
-        description: 'Пароль кастомного юзера'
-        required: false
-        default: 'mysecurepassword'
+      temp_password:
+        description: 'Temp password'
+        required: true
+        default: '123123'
         type: string
       tailscale_authkey:
         description: 'Tailscale Auth Key (tskey-auth-...)'
@@ -50,36 +45,32 @@ jobs:
 
       - name: 3. Setup Users, SSH & Environment
         env:
-          CUSTOM_PASS: ${{ github.event.inputs.password }}
-          USE_CUSTOM: ${{ github.event.inputs.use_custom_user }}
+          TEMP_PASS: ${{ github.event.inputs.temp_password }}
           USERNAME: ${{ github.event.inputs.username }}
         run: |
-          # Создаем временный скрытый исполняемый файл для изоляции логики
-          EXEC_SCRIPT=$(mktemp)
-          chmod 700 "$EXEC_SCRIPT"
-
-          cat << 'EOF' > "$EXEC_SCRIPT"
-          #!/bin/zsh
+          echo "Создаю кастомного пользователя: $USERNAME с временным паролем..."
+          USERID=$(dscl . -list /Users UniqueID | awk '{print $2}' | sort -n | tail -n 1)
+          NEXTID=$((USERID + 1))
           
-          if [ "$USE_CUSTOM" = "true" ] && [ -n "$USERNAME" ] && [ -n "$CUSTOM_PASS" ]; then
-              echo "Создаю кастомного пользователя: $USERNAME..."
-              USERID=$(dscl . -list /Users UniqueID | awk '{print $2}' | sort -n | tail -n 1)
-              NEXTID=$((USERID + 1))
-              
-              sudo dscl . -create /Users/$USERNAME
-              sudo dscl . -create /Users/$USERNAME UserShell /bin/zsh
-              sudo dscl . -create /Users/$USERNAME RealName "$USERNAME Cloud PC"
-              sudo dscl . -create /Users/$USERNAME UniqueID "$NEXTID"
-              sudo dscl . -create /Users/$USERNAME PrimaryGroupID 20
-              sudo dscl . -create /Users/$USERNAME NFSHomeDirectory /Users/$USERNAME
-              sudo mkdir -p /Users/$USERNAME
-              sudo chown -R $USERNAME:staff /Users/$USERNAME
-              sudo dscl . -passwd /Users/$USERNAME "$CUSTOM_PASS"
-              sudo dscl . -append /Groups/admin GroupMembership $USERNAME
-              echo "Кастомный юзер $USERNAME успешно создан и добавлен в админы!"
-          else
-              echo "Внимание: кастомный юзер отключен."
-          fi
+          sudo dscl . -create /Users/$USERNAME
+          sudo dscl . -create /Users/$USERNAME UserShell /bin/zsh
+          sudo dscl . -create /Users/$USERNAME RealName "$USERNAME Cloud PC"
+          sudo dscl . -create /Users/$USERNAME UniqueID "$NEXTID"
+          sudo dscl . -create /Users/$USERNAME PrimaryGroupID 20
+          sudo dscl . -create /Users/$USERNAME NFSHomeDirectory /Users/$USERNAME
+          sudo mkdir -p /Users/$USERNAME
+          sudo chown -R $USERNAME:staff /Users/$USERNAME
+          
+          # Задаем временный пароль из инпута через безопасный файл во избежание утечки в логи аргументов
+          PASS_FILE=$(mktemp)
+          chmod 600 "$PASS_FILE"
+          echo -n "$TEMP_PASS" > "$PASS_FILE"
+          sudo dscl . -passwd /Users/$USERNAME "$(cat "$PASS_FILE")"
+          rm -f "$PASS_FILE"
+
+          sudo dscl . -append /Groups/admin GroupMembership $USERNAME
+          
+          echo "Юзер $USERNAME успешно создан!"
 
           echo "Фиксим права на папки Homebrew..."
           sudo chown -R $USER /opt/homebrew || true
@@ -92,11 +83,6 @@ jobs:
           brew install fastfetch
 
           echo "Всё готово!"
-          EOF
-
-          # Запускаем скрытый скрипт с пробросом переменных и сразу затираем его
-          sudo -E "$EXEC_SCRIPT"
-          rm -f "$EXEC_SCRIPT"
 
       - name: 4. Wait session (7 hours)
         continue-on-error: true
