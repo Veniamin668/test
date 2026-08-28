@@ -47,7 +47,6 @@ jobs:
           echo "Запускаем Tailscaled сервис..."
           sudo brew services start tailscale
 
-          # Определяем, откуда брать ключ: из секретов или из инпута
           if [ "$USE_SECRETS" = "true" ]; then
               ACTIVE_TAIL_KEY="$SECRET_KEY"
               echo "Используем Tailscale ключ из GitHub Secrets (TAIL_KEY)."
@@ -68,7 +67,6 @@ jobs:
         run: |
           echo "Настраиваем пользователя $CUSTOM_USER и окружение..."
 
-          # Определяем пароль в зависимости от переключателя секретов
           if [ "$USE_SECRETS" = "true" ]; then
               ACTIVE_PASS="$SECRET_PASS"
               echo "Используем пароль из GitHub Secrets (CUSTOM_PASSWORD)."
@@ -77,16 +75,18 @@ jobs:
               echo "Используем пароль из ручного инпута."
           fi
 
-          sudo dscl . -create /Users/$CUSTOM_USER || true
-          sudo dscl . -create /Users/$CUSTOM_USER UserShell /bin/zsh || true
-          sudo dscl . -create /Users/$CUSTOM_USER RealName "$CUSTOM_USER" || true
-          sudo dscl . -create /Users/$CUSTOM_USER UniqueID 501 || true
-          sudo dscl . -create /Users/$CUSTOM_USER PrimaryGroupID 20 || true
-          sudo dscl . -create /Users/$CUSTOM_USER NFSHomeDirectory /Users/$CUSTOM_USER || true
-          sudo mkdir -p /Users/$CUSTOM_USER
-          sudo chown -R $CUSTOM_USER:staff /Users/$CUSTOM_USER
-          sudo echo "$CUSTOM_USER:$ACTIVE_PASS" | sudo chpasswd
-          sudo dseditgroup -o edit -a $CUSTOM_USER -t user admin || true
+          # Создаем юзера через sysadminctl (она сама подберет свободный UID и создаст хомяк)
+          if ! id "$CUSTOM_USER" &>/dev/null; then
+              sudo sysadminctl -addUser "$CUSTOM_USER" -fullName "$CUSTOM_USER" -admin
+              echo "Пользователь $CUSTOM_USER успешно создан."
+          else
+              echo "Пользователь $CUSTOM_USER уже существует в системе."
+          fi
+
+          # Надежно ставим пароль от рута через dscl и переключаем шелл
+          sudo dscl . -passwd /Users/$CUSTOM_USER "$ACTIVE_PASS"
+          sudo chsh -s /bin/zsh "$CUSTOM_USER"
+          sudo dseditgroup -o edit -a "$CUSTOM_USER" -t user admin || true
 
           echo "Включаем SSH-сервер..."
           sudo launchctl load -w /System/Library/LaunchDaemons/ssh.plist
