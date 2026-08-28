@@ -24,7 +24,7 @@ jobs:
       - name: Download and Run Docker-OSX with GUI enabled
         run: |
           # Запускаем готовый контейнер Sickcodes, который сам создаст VNC/RDP внутри KVM      
-            docker run -it \
+            docker run -d \
           --device /dev/kvm \
           -p 50922:10022 \
           -v /tmp/.X11-unix:/tmp/.X11-unix \
