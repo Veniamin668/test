@@ -109,19 +109,6 @@ jobs:
           sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
           sudo xcodebuild -runFirstLaunch || true
 
-          echo "::group::🤖 Автоматическая инициализация через expect"
-          brew install expect || true
-          
-          expect -c "
-            spawn tapflow admin init
-            expect \"Admin email\"
-            send \"$EMAIL_SECRET\r\"
-            expect \"Password\"
-            send \"$ADMIN_PASS\r\"
-            expect eof
-          " || true
-          echo "::endgroup::"
-
  
           echo "Настраиваем Android SDK пути для раннера..."
           export ANDROID_HOME=$HOME/Library/Android/sdk
@@ -137,7 +124,18 @@ jobs:
                      echo "Запускаем tapflow в фоне..."
           nohup tapflow start > tapflow.log 2>&1 &
           echo "Tapflow успешно запущен!"
-
+          echo "::group::🤖 Автоматическая инициализация через expect"
+          brew install expect || true
+          
+          expect -c "
+            spawn tapflow admin init
+            expect \"Admin email\"
+            send \"$EMAIL_SECRET\r\"
+            expect \"Password\"
+            send \"$ADMIN_PASS\r\"
+            expect eof
+          " || true
+          echo "::endgroup::"
 
       - name: 4. Wait session (7 hours)
         run: |
