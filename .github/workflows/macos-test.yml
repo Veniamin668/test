@@ -118,7 +118,7 @@ jobs:
           expect -c "
             spawn tapflow setup ios
             expect {
-              -re \"(yes|no|Press|Continue|Allow)\" { send \"y\r\"; exp_continue }
+              -re \"(yes|no|Press|Continue|Allow|OK|y)\" { send \"y\r\"; exp_continue }
               eof
             }
           " || true
@@ -126,7 +126,7 @@ jobs:
           expect -c "
             spawn tapflow setup android
             expect {
-              -re \"(yes|no|Press|Continue|Allow)\" { send \"y\r\"; exp_continue }
+              -re \"(yes|no|Press|Continue|Allow|OK|AVD|y)\" { send \"y\r\"; exp_continue }
               eof
             }
           " || true
