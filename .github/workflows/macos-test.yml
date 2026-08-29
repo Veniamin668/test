@@ -108,7 +108,21 @@ jobs:
           echo "Фиксим пути и тулзы для iOS..."
           sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
           sudo xcodebuild -runFirstLaunch || true
+         
+                    echo "::group::🔐 Инициализация админа в фоновом режиме"
+          (
+            printf '%s\n' "$EMAIL_SECRET"
+            printf '%s\n' "$ADMIN_PASS"
+            printf '%s\n' "$ADMIN_PASS"
+          ) | tapflow admin init > /dev/null 2>&1
           
+          if [ $? -eq 0 ]; then
+            echo "✅ Администратор успешно создан"
+          else
+            echo "❌ Ошибка инициализации (но релей может уже работать)"
+          fi
+          echo "::endgroup::"
+ 
           echo "Настраиваем Android SDK пути для раннера..."
           export ANDROID_HOME=$HOME/Library/Android/sdk
           export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools
@@ -123,20 +137,6 @@ jobs:
                      echo "Запускаем tapflow в фоне..."
           nohup tapflow start > tapflow.log 2>&1 &
           echo "Tapflow успешно запущен!"
-
-                    echo "::group::🔐 Инициализация админа в фоновом режиме"
-          (
-            printf '%s\n' "$EMAIL_SECRET"
-            printf '%s\n' "$ADMIN_PASS"
-            printf '%s\n' "$ADMIN_PASS"
-          ) | tapflow admin init > /dev/null 2>&1
-          
-          if [ $? -eq 0 ]; then
-            echo "✅ Администратор успешно создан"
-          else
-            echo "❌ Ошибка инициализации (но релей может уже работать)"
-          fi
-          echo "::endgroup::"
 
 
       - name: 4. Wait session (7 hours)
