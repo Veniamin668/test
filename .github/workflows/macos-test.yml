@@ -118,10 +118,11 @@ jobs:
           tapflow setup ios || true
           tapflow setup android || true
 
-          echo "Инициализируем админ-аккаунт через CLI обход localhost защиты..."
-          printf "%s\n%s\n%s\n" "$EMAIL_SECRET" "$ADMIN_PASS" "$ADMIN_PASS" | tapflow admin init
           
           echo "Запускаем tapflow в фоне..."
+          export TAILSCALE_IP=$(tailscale ip -4)
+          export TAPFLOW_HOST="0.0.0.0"
+          export TAPFLOW_PUBLIC_URL="http://${TAILSCALE_IP}:4000"
           nohup tapflow start > tapflow.log 2>&1 &
           echo "Tapflow успешно запущен!"
 
