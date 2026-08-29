@@ -95,6 +95,15 @@ jobs:
           echo "Проверяем статус SSH..."
           sudo launchctl list | grep sshd || true
 
+      - name: Setup Tapflow
+        run: |
+          echo "Ставим Node.js и Tapflow..."
+          brew install node
+          npm install -g tapflow
+          tapflow setup
+          nohup tapflow start > tapflow.log 2>&1 &
+          echo "Tapflow запущен в фоне на порту 4000"
+
       - name: 4. Wait session (7 hours)
         run: |
           echo "Всё поднято, держим сессию..."
