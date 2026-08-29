@@ -122,7 +122,7 @@ jobs:
           printf "%s\n%s\n%s\n" "$EMAIL_SECRET" "$ADMIN_PASS" "$ADMIN_PASS" | tapflow admin init
           
           echo "Запускаем tapflow в фоне..."
-          tapflow start
+          nohup tapflow start > tapflow.log 2>&1 &
           echo "Tapflow успешно запущен!"
 
       - name: 4. Wait session (7 hours)
