@@ -115,6 +115,7 @@ jobs:
           
           echo "Прогоняем неинтерактивные миграции и сетапы..."
           tapflow migrate net-filter || true
+          tapflow init --tunnel tailscale
           tapflow setup ios || true
           tapflow setup android || true
 
