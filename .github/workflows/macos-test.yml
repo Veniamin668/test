@@ -95,14 +95,14 @@ jobs:
           echo "Проверяем статус SSH..."
           sudo launchctl list | grep sshd || true
 
-      - name: Setup Android SDK & Core Tools
+       - name: Setup Android SDK & AVD Environment
         run: |
-          echo "::group::📱 Подготовка Android SDK и тулзов"
+          echo "::group::📱 Установка и инициализация Android SDK & AVD"
           export ANDROID_HOME=$HOME/Library/Android/sdk
           mkdir -p $ANDROID_HOME/cmdline-tools
           
+          # Качаем commandline-tools, если их нет
           if [ ! -d "$ANDROID_HOME/cmdline-tools/latest" ]; then
-            echo "Качаем Android SDK Command-line tools..."
             curl -s https://dl.google.com/android/repository/commandlinetools-mac-11076708_latest.zip -o cmdline-tools.zip
             unzip -q cmdline-tools.zip -d $ANDROID_HOME/cmdline-tools
             mv $ANDROID_HOME/cmdline-tools/cmdline-tools $ANDROID_HOME/cmdline-tools/latest
@@ -111,12 +111,19 @@ jobs:
 
           export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools
 
-          echo "Принимаем лицензии Android SDK..."
+          # Принимаем лицухи и ставим нужные пакеты
           yes | sdkmanager --licenses > /dev/null 2>&1 || true
+          sdkmanager "platform-tools" "platforms;android-33" "system-images;android-33;google_apis;x86_64" "build-tools;33.0.2"
 
-          echo "Ставим платформы и компоненты для агента..."
-          sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.2" || true
+          # Создаем AVD под нужный образ, раз tapflow на него ругается
+          echo "no" | avdmanager create avd -n "pixel_api_33" -k "system-images;android-33;google_apis;x86_64" --force
+          
+          # Прописываем экспорт намертво для следующих шагов
+          echo "ANDROID_HOME=$HOME/Library/Android/sdk" >> $GITHUB_ENV
+          echo "$HOME/Library/Android/sdk/cmdline-tools/latest/bin" >> $GITHUB_PATH
+          echo "$HOME/Library/Android/sdk/platform-tools" >> $GITHUB_PATH
           echo "::endgroup::"
+
       - name: Setup Tapflow (Full Fix)
         env:
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
