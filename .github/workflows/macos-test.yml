@@ -95,7 +95,7 @@ jobs:
           echo "Проверяем статус SSH..."
           sudo launchctl list | grep sshd || true
 
-      - name: Setup Tapflow (Full Expect Fix)
+      - name: Setup Tapflow (Grouped Expect Fix)
         env:
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
           ADMIN_PASS: ${{ secrets.ADMIN_PASS }}
@@ -112,7 +112,7 @@ jobs:
           echo "Инициализируем туннель..."
           tapflow init --tunnel tailscale
 
-          echo "::group::🤖 Автоматический прожим сетапов через expect"
+          echo "::group::🤖 Автоматический прожим сетапа iOS через expect"
           brew install expect || true
 
           expect -c "
@@ -122,7 +122,9 @@ jobs:
               eof
             }
           " || true
+          echo "::endgroup::"
 
+          echo "::group::🤖 Автоматический прожим сетапа Android через expect"
           expect -c "
             spawn tapflow setup android
             expect {
