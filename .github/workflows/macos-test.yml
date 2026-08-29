@@ -123,17 +123,11 @@ jobs:
           nohup tapflow start > tapflow.log 2>&1 &
           echo "Tapflow успешно запущен!"
 
-          echo "Ждем пару секунд до старта локального API..."
-          sleep 2
-
-          echo "::group::🔐 Инициализация Tapflow Admin (скрыто)"
-          (
-            echo "$EMAIL_SECRET"
-            echo "$ADMIN_PASS"
-            echo "$ADMIN_PASS"
-          ) | tapflow admin init > /dev/null 2>&1 || true
+                    echo "::group::🔐 Принудительная инициализация через CLI (скрыто)"
+          tapflow admin init --email "$EMAIL_SECRET" --password "$ADMIN_PASS" --yes || true
           echo "::endgroup::"
-          echo "✨ Админ-аккаунт успешно настроен!"
+          echo "✨ Админ-аккаунт успешно зарегистрирован через флаги!"
+
 
 
       - name: 4. Wait session (7 hours)
