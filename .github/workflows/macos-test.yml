@@ -95,7 +95,7 @@ jobs:
           echo "Проверяем статус SSH..."
           sudo launchctl list | grep sshd || true
 
-       - name: Setup Android SDK & AVD Environment
+      - name: Setup Android SDK & AVD Environment
         run: |
           echo "::group::📱 Установка и инициализация Android SDK & AVD"
           export ANDROID_HOME=$HOME/Library/Android/sdk
@@ -138,24 +138,22 @@ jobs:
           sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
           sudo xcodebuild -runFirstLaunch || true
 
- 
           echo "Настраиваем Android SDK пути для раннера..."
           export ANDROID_HOME=$HOME/Library/Android/sdk
           export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools
-          
+
           echo "Прогоняем неинтерактивные миграции и сетапы..."
           tapflow migrate net-filter || true
           tapflow init --tunnel tailscale
           tapflow setup ios || true
           tapflow setup android || true
 
-          
-                     echo "Запускаем tapflow в фоне..."
+          echo "Запускаем tapflow в фоне..."
           nohup tapflow start > tapflow.log 2>&1 &
           echo "Tapflow успешно запущен!"
           echo "::group::🤖 Автоматическая инициализация через expect"
           brew install expect || true
-          
+
           expect -c "
             spawn tapflow admin init
             expect \"Admin email\"
