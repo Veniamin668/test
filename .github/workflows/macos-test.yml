@@ -124,15 +124,6 @@ jobs:
           nohup tapflow start > tapflow.log 2>&1 &
           echo "Tapflow успешно запущен!"
 
-          echo "Создаем конфиг для внешнего доступа..."
-          cat << 'EOF' > tapflow.config.json
-          {
-            "port": 4000,
-            "host": "0.0.0.0"
-          }
-          EOF
-
-
 
 
       - name: 4. Wait session (7 hours)
