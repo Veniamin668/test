@@ -117,7 +117,7 @@ jobs:
           tapflow setup android || true
           
           echo "Запускаем tapflow в фоне..."
-          nohup tapflow start --host 0.0.0.0 > tapflow.log 2>&1 &
+          tapflow start
           echo "Tapflow успешно запущен!"
 
       - name: 4. Wait session (7 hours)
