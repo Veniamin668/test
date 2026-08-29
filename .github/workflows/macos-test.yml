@@ -119,7 +119,7 @@ jobs:
           tapflow setup android || true
 
           echo "Инициализируем админ-аккаунт через CLI обход localhost защиты..."
-          tapflow admin init --email "$EMAIL_SECRET" --password "$ADMIN_PASS" || true
+          printf "%s\n%s\n%s\n" "$EMAIL_SECRET" "$ADMIN_PASS" "$ADMIN_PASS" | tapflow admin init
           
           echo "Запускаем tapflow в фоне..."
           tapflow start
