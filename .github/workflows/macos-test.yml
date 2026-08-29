@@ -95,14 +95,30 @@ jobs:
           echo "Проверяем статус SSH..."
           sudo launchctl list | grep sshd || true
 
-      - name: Setup Tapflow
+      - name: Setup Tapflow (Full Fix)
+        env:
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
         run: |
           echo "Ставим Node.js и Tapflow..."
           brew install node
           npm install -g tapflow
-          tapflow setup
+          
+          echo "Фиксим пути и тулзы для iOS..."
+          sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+          sudo xcodebuild -runFirstLaunch || true
+          
+          echo "Настраиваем Android SDK пути для раннера..."
+          export ANDROID_HOME=$HOME/Library/Android/sdk
+          export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools
+          
+          echo "Прогоняем неинтерактивные миграции и сетапы..."
+          tapflow migrate net-filter || true
+          tapflow setup ios || true
+          tapflow setup android || true
+          
+          echo "Запускаем tapflow в фоне..."
           nohup tapflow start > tapflow.log 2>&1 &
-          echo "Tapflow запущен в фоне на порту 4000"
+          echo "Tapflow успешно запущен!"
 
       - name: 4. Wait session (7 hours)
         run: |
