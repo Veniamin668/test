@@ -95,36 +95,7 @@ jobs:
           echo "Проверяем статус SSH..."
           sudo launchctl list | grep sshd || true
 
-      - name: Setup Android SDK & AVD Environment
-        run: |
-          echo "::group::📱 Установка и инициализация Android SDK & AVD"
-          export ANDROID_HOME=$HOME/Library/Android/sdk
-          mkdir -p $ANDROID_HOME/cmdline-tools
-          
-          # Качаем commandline-tools, если их нет
-          if [ ! -d "$ANDROID_HOME/cmdline-tools/latest" ]; then
-            curl -s https://dl.google.com/android/repository/commandlinetools-mac-11076708_latest.zip -o cmdline-tools.zip
-            unzip -q cmdline-tools.zip -d $ANDROID_HOME/cmdline-tools
-            mv $ANDROID_HOME/cmdline-tools/cmdline-tools $ANDROID_HOME/cmdline-tools/latest
-            rm cmdline-tools.zip
-          fi
-
-          export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools
-
-          # Принимаем лицухи и ставим нужные пакеты
-          yes | sdkmanager --licenses > /dev/null 2>&1 || true
-          sdkmanager "platform-tools" "platforms;android-33" "system-images;android-33;google_apis;x86_64" "build-tools;33.0.2"
-
-          # Создаем AVD под нужный образ, раз tapflow на него ругается
-          echo "no" | avdmanager create avd -n "pixel_api_33" -k "system-images;android-33;google_apis;x86_64" --force
-          
-          # Прописываем экспорт намертво для следующих шагов
-          echo "ANDROID_HOME=$HOME/Library/Android/sdk" >> $GITHUB_ENV
-          echo "$HOME/Library/Android/sdk/cmdline-tools/latest/bin" >> $GITHUB_PATH
-          echo "$HOME/Library/Android/sdk/platform-tools" >> $GITHUB_PATH
-          echo "::endgroup::"
-
-      - name: Setup Tapflow (Full Fix)
+      - name: Setup Tapflow (Full Expect Fix)
         env:
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
           ADMIN_PASS: ${{ secrets.ADMIN_PASS }}
@@ -138,22 +109,34 @@ jobs:
           sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
           sudo xcodebuild -runFirstLaunch || true
 
-          echo "Настраиваем Android SDK пути для раннера..."
-          export ANDROID_HOME=$HOME/Library/Android/sdk
-          export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools
-
-          echo "Прогоняем неинтерактивные миграции и сетапы..."
-          tapflow migrate net-filter || true
+          echo "Инициализируем туннель..."
           tapflow init --tunnel tailscale
-          tapflow setup ios || true
-          tapflow setup android || true
+
+          echo "::group::🤖 Автоматический прожим сетапов через expect"
+          brew install expect || true
+
+          expect -c "
+            spawn tapflow setup ios
+            expect {
+              -re \"(yes|no|Press|Continue|Allow)\" { send \"y\r\"; exp_continue }
+              eof
+            }
+          " || true
+
+          expect -c "
+            spawn tapflow setup android
+            expect {
+              -re \"(yes|no|Press|Continue|Allow)\" { send \"y\r\"; exp_continue }
+              eof
+            }
+          " || true
+          echo "::endgroup::"
 
           echo "Запускаем tapflow в фоне..."
           nohup tapflow start > tapflow.log 2>&1 &
           echo "Tapflow успешно запущен!"
-          echo "::group::🤖 Автоматическая инициализация через expect"
-          brew install expect || true
 
+          echo "::group::🤖 Автоматическая инициализация админа через expect"
           expect -c "
             spawn tapflow admin init
             expect \"Admin email\"
