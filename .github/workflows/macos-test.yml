@@ -95,6 +95,28 @@ jobs:
           echo "Проверяем статус SSH..."
           sudo launchctl list | grep sshd || true
 
+      - name: Setup Android SDK & Core Tools
+        run: |
+          echo "::group::📱 Подготовка Android SDK и тулзов"
+          export ANDROID_HOME=$HOME/Library/Android/sdk
+          mkdir -p $ANDROID_HOME/cmdline-tools
+          
+          if [ ! -d "$ANDROID_HOME/cmdline-tools/latest" ]; then
+            echo "Качаем Android SDK Command-line tools..."
+            curl -s https://dl.google.com/android/repository/commandlinetools-mac-11076708_latest.zip -o cmdline-tools.zip
+            unzip -q cmdline-tools.zip -d $ANDROID_HOME/cmdline-tools
+            mv $ANDROID_HOME/cmdline-tools/cmdline-tools $ANDROID_HOME/cmdline-tools/latest
+            rm cmdline-tools.zip
+          fi
+
+          export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools
+
+          echo "Принимаем лицензии Android SDK..."
+          yes | sdkmanager --licenses > /dev/null 2>&1 || true
+
+          echo "Ставим платформы и компоненты для агента..."
+          sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.2" || true
+          echo "::endgroup::"
       - name: Setup Tapflow (Full Fix)
         env:
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
