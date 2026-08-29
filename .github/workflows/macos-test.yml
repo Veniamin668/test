@@ -98,6 +98,8 @@ jobs:
       - name: Setup Tapflow (Full Fix)
         env:
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          ADMIN_PASS: ${{ secrets.ADMIN_PASS }}
+          EMAIL_SECRET: ${{ secrets.EMAIL_SECRET }}
         run: |
           echo "Ставим Node.js и Tapflow..."
           brew install node
@@ -115,6 +117,9 @@ jobs:
           tapflow migrate net-filter || true
           tapflow setup ios || true
           tapflow setup android || true
+
+          echo "Инициализируем админ-аккаунт через CLI обход localhost защиты..."
+          tapflow admin init --email "$EMAIL_SECRET" --password "$ADMIN_PASS" || true
           
           echo "Запускаем tapflow в фоне..."
           tapflow start
