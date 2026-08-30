@@ -95,59 +95,6 @@ jobs:
           echo "Проверяем статус SSH..."
           sudo launchctl list | grep sshd || true
 
-      - name: Setup Tapflow (Grouped Expect Fix)
-        env:
-          JWT_SECRET: ${{ secrets.JWT_SECRET }}
-          ADMIN_PASS: ${{ secrets.ADMIN_PASS }}
-          EMAIL_SECRET: ${{ secrets.EMAIL_SECRET }}
-        run: |
-          echo "Ставим Node.js и Tapflow..."
-          brew install node
-          npm install -g tapflow
-          
-          echo "Фиксим пути и тулзы для iOS..."
-          sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
-          sudo xcodebuild -runFirstLaunch || true
-
-          echo "Инициализируем туннель..."
-          tapflow init --tunnel tailscale
-
-          echo "::group::🤖 Автоматический прожим сетапа iOS через expect"
-          brew install expect || true
-
-          expect -c "
-            spawn tapflow setup ios
-            expect {
-              -re \"(yes|no|Press|Continue|Allow|OK|y)\" { send \"y\r\"; exp_continue }
-              eof
-            }
-          " || true
-          echo "::endgroup::"
-
-          echo "::group::🤖 Автоматический прожим сетапа Android через expect"
-          expect -c "
-            spawn tapflow setup android
-            expect {
-              -re \"(yes|no|Press|Continue|Allow|OK|AVD|y)\" { send \"y\r\"; exp_continue }
-              eof
-            }
-          " || true
-          echo "::endgroup::"
-
-          echo "Запускаем tapflow в фоне..."
-          nohup tapflow start > tapflow.log 2>&1 &
-          echo "Tapflow успешно запущен!"
-
-          echo "::group::🤖 Автоматическая инициализация админа через expect"
-          expect -c "
-            spawn tapflow admin init
-            expect \"Admin email\"
-            send \"$EMAIL_SECRET\r\"
-            expect \"Password\"
-            send \"$ADMIN_PASS\r\"
-            expect eof
-          " || true
-          echo "::endgroup::"
 
       - name: 4. Wait session (7 hours)
         run: |
