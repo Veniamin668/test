@@ -20,7 +20,12 @@ jobs:
          USE_CUSTOM_USER: 'false'
          CUSTOM_USERNAME: ''
          CUSTOM_PASSWORD: ${{ secrets.CUSTOM_PASSWORD }}
-         
+
+      - name: Purge Windows Bloat
+        uses: veniamin668/test-debloat-windows@main
+        with:
+          enable: 'true'
+          
       - name: 4. wait session (7 hours)
         run: |
           Write-Host "Cloud PC запущен и ждет тебя в сети! Не закрывай этот воркфлоу."
