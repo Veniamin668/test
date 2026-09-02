@@ -31,7 +31,7 @@ jobs:
       - name: Configure and Start Local SSH Server
         run: |
           sudo apt-get update
-          sudo apt-get install -y openssh-server netcat-openbsd
+          sudo apt-get install -y openssh-server netcat-openbsd bc bison build-essential ccache flex libssl-dev libelf-dev python3 git wget gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
           echo "root:root" | sudo chpasswd
           sudo mkdir -p /var/run/sshd
           sudo sed -i 's/#PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config
