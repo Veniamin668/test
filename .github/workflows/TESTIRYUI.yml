@@ -1,4 +1,4 @@
-name: Archlinux & SSH host
+name: YAEBUEBULINUX & SSH host
 
 on:
   workflow_dispatch:
