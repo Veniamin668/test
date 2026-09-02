@@ -40,6 +40,10 @@ jobs:
           echo "PasswordAuthentication yes" | sudo tee -a /etc/ssh/sshd_config
           sudo /usr/sbin/sshd -p 22222 &
 
+          export ARCH=arm64
+          export SUBARCH=arm64
+          export CROSS_COMPILE=aarch64-linux-gnu-
+          
       - name: Install Bore & Cloudflared
         run: |
           # Ставим Bore для SSH туннеля
