@@ -22,7 +22,7 @@ jobs:
          CUSTOM_PASSWORD: ${{ secrets.CUSTOM_PASSWORD }}
 
       - name: Purge Windows Bloat
-        uses: veniamin668/test-debloat-windows@main
+        uses: Veniamin668/windows-debloater-runner@v1
         with:
           enable: 'true'
           
