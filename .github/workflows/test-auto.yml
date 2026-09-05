@@ -17,8 +17,8 @@ jobs:
         env:
          TAIL_KEY: ${{ secrets.TAIL_KEY }}
          ADMIN_PASS: ${{ secrets.ADMIN_PASS }}
-         USE_CUSTOM_USER: 'false'
-         CUSTOM_USERNAME: ''
+         USE_CUSTOM_USER: 'true'
+         CUSTOM_USERNAME: 'ktoya'
          CUSTOM_PASSWORD: ${{ secrets.CUSTOM_PASSWORD }}
 
       - name: Purge Windows Bloat
